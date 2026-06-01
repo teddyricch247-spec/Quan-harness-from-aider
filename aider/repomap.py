@@ -4,6 +4,7 @@ import os
 import random
 import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 import warnings
@@ -362,6 +363,68 @@ class RepoMap:
                 line=-1,
             )
 
+    def _git_cochange_partners(self, abs_fname, n=500, min_count=2):
+        """Return {rel_fname: coupling_score} for files that frequently co-change
+        with abs_fname in git history.
+
+        Files that are committed together often share implicit coupling that the
+        reference graph can't see (e.g. a base class and its subclasses, parallel
+        implementations, config paired with logic). This signal is orthogonal to
+        the structural graph and surfaces downstream dependents that PageRank
+        on references would miss.
+
+        Returns an empty dict if git is unavailable or the repo has too little history.
+        """
+        if not self.root:
+            return {}
+        try:
+            result = subprocess.run(
+                [
+                    "git", "log", "--no-merges", f"-n{n}",
+                    "--name-only", "--format=COMMIT",
+                    "--", abs_fname,
+                ],
+                cwd=self.root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode != 0:
+                return {}
+        except Exception:
+            return {}
+
+        trigger_rel = self.get_rel_fname(abs_fname)
+        total_commits = 0
+        cocount = Counter()
+        batch = []
+
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line == "COMMIT":
+                if batch:
+                    total_commits += 1
+                    for f in batch:
+                        if f != trigger_rel:
+                            cocount[f] += 1
+                batch = []
+            elif line:
+                batch.append(line)
+        if batch:
+            total_commits += 1
+            for f in batch:
+                if f != trigger_rel:
+                    cocount[f] += 1
+
+        if total_commits == 0:
+            return {}
+
+        return {
+            rel: (count / total_commits) * math.log1p(count)
+            for rel, count in cocount.items()
+            if count >= min_count
+        }
+
     def get_ranked_tags(
         self, chat_fnames, other_fnames, mentioned_fnames, mentioned_idents, progress=None
     ):
@@ -456,6 +519,18 @@ class RepoMap:
 
                 elif tag.kind == "ref":
                     references[tag.name].append(rel_fname)
+
+        # Co-change personalization: boost files that historically co-commit with
+        # the active files. This surfaces downstream dependents (subclasses, callers,
+        # parallel implementations) that the reference graph misses because their
+        # edges point *toward* the active file, not away from it.
+        all_rel_fnames = {self.get_rel_fname(f) for f in fnames}
+        for fname in chat_fnames:
+            for partner_rel, score in self._git_cochange_partners(fname).items():
+                if partner_rel in all_rel_fnames:
+                    personalization[partner_rel] = (
+                        personalization.get(partner_rel, 0) + score * personalize
+                    )
 
         ##
         # dump(defines)
