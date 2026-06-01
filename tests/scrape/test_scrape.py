@@ -171,5 +171,79 @@ class TestScrape(unittest.TestCase):
         scraper.html_to_markdown.assert_called_once_with(html_content)
 
 
+class TestParseLlmsTxtSkills(unittest.TestCase):
+    def test_parses_skills_section(self):
+        from aider.scrape import parse_llms_txt_skills
+
+        text = (
+            "# Some API\n\n"
+            "> tagline\n\n"
+            "## Endpoint\n\n"
+            "`GET /thing`\n\n"
+            "## Skills\n\n"
+            "Intro prose that should be ignored.\n\n"
+            "- [placeholder](/skills/placeholder/SKILL.md): make placeholder images."
+            ' <!-- skill: {"version":"1.0.0"} -->\n'
+            "- [api-client](/skills/api-client/SKILL.md): call the API over HTTP.\n\n"
+            "## After\n\n"
+            "- [not-a-skill](/x): should be ignored, wrong section.\n"
+        )
+        skills = parse_llms_txt_skills(text)
+        self.assertEqual(
+            skills,
+            [
+                (
+                    "placeholder",
+                    "/skills/placeholder/SKILL.md",
+                    "make placeholder images.",
+                ),
+                ("api-client", "/skills/api-client/SKILL.md", "call the API over HTTP."),
+            ],
+        )
+
+    def test_no_skills_section(self):
+        from aider.scrape import parse_llms_txt_skills
+
+        self.assertEqual(parse_llms_txt_skills("# Title\n\n> tag\n\n## Endpoint\n"), [])
+
+    def test_fetch_llms_txt_rejects_html(self):
+        from unittest.mock import patch
+
+        from aider.scrape import fetch_llms_txt
+
+        response = MagicMock()
+        response.status_code = 200
+        response.headers = {"content-type": "text/html; charset=utf-8"}
+        response.text = "<!doctype html><html><body>SPA</body></html>"
+
+        client = MagicMock()
+        client.get.return_value = response
+        client.__enter__ = MagicMock(return_value=client)
+        client.__exit__ = MagicMock(return_value=False)
+
+        with patch("httpx.Client", return_value=client):
+            self.assertIsNone(fetch_llms_txt("https://example.com"))
+
+    def test_fetch_llms_txt_returns_markdown(self):
+        from unittest.mock import patch
+
+        from aider.scrape import fetch_llms_txt
+
+        response = MagicMock()
+        response.status_code = 200
+        response.headers = {"content-type": "text/plain; charset=utf-8"}
+        response.text = "# Site\n\n## Skills\n\n- [s](/s/SKILL.md): a skill.\n"
+
+        client = MagicMock()
+        client.get.return_value = response
+        client.__enter__ = MagicMock(return_value=client)
+        client.__exit__ = MagicMock(return_value=False)
+
+        with patch("httpx.Client", return_value=client):
+            text = fetch_llms_txt("https://example.com")
+        self.assertIsNotNone(text)
+        self.assertIn("## Skills", text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -247,10 +247,54 @@ class Commands:
 
         self.io.tool_output("... added to chat.")
 
+        self.announce_llms_txt_skills(url)
+
         self.coder.cur_messages += [
             dict(role="user", content=content),
             dict(role="assistant", content="Ok."),
         ]
+
+    def announce_llms_txt_skills(self, url):
+        """
+        After scraping a URL, check the domain's `/llms.txt` for a `## Skills`
+        section and tell the user about any agent skills it publishes.
+
+        This only surfaces what is available; it never loads a skill
+        automatically. The user can pull one in with `/web <skill-url>`.
+        Fails silently (and caches the result per origin) so it never blocks.
+        """
+        from urllib.parse import urljoin, urlparse
+
+        from aider.scrape import fetch_llms_txt, parse_llms_txt_skills
+
+        try:
+            parts = urlparse(url)
+        except ValueError:
+            return
+        if not parts.scheme or not parts.netloc:
+            return
+        origin = f"{parts.scheme}://{parts.netloc}"
+
+        checked = getattr(self, "checked_llms_txt_origins", None)
+        if checked is None:
+            checked = self.checked_llms_txt_origins = set()
+        if origin in checked:
+            return
+        checked.add(origin)
+
+        text = fetch_llms_txt(origin, verify_ssl=self.verify_ssl)
+        if not text:
+            return
+        skills = parse_llms_txt_skills(text)
+        if not skills:
+            return
+
+        self.io.tool_output(
+            f"{origin} publishes {len(skills)} agent skill(s) via llms.txt:"
+        )
+        for title, skill_url, description in skills:
+            self.io.tool_output(f"  - {title}: {description}")
+            self.io.tool_output(f"    load with: /web {urljoin(origin + '/', skill_url)}")
 
     def is_command(self, inp):
         return inp[0] in "/!"

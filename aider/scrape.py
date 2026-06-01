@@ -250,6 +250,66 @@ class Scraper:
         return md
 
 
+def parse_llms_txt_skills(text):
+    """
+    Extract the `## Skills` section from an llms.txt document.
+
+    Returns a list of (title, url, description) tuples, one per skill entry.
+    Each entry follows the llms.txt link convention:
+        - [title](url): description  <!-- optional metadata -->
+
+    See https://github.com/MauricioPerera/llms-txt-skills for the proposed format.
+    """
+    skills = []
+    item_re = re.compile(
+        r"^-\s*\[([^\]]+)\]\(([^)]+)\)\s*:\s*(.+?)(?:\s*<!--.*?-->)?\s*$"
+    )
+    in_section = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if re.match(r"^##\s+skills\s*$", stripped, re.IGNORECASE):
+            in_section = True
+            continue
+        if in_section and stripped.startswith("## "):
+            break
+        if in_section:
+            m = item_re.match(stripped)
+            if m:
+                skills.append((m.group(1).strip(), m.group(2).strip(), m.group(3).strip()))
+    return skills
+
+
+def fetch_llms_txt(origin, verify_ssl=True, timeout=5):
+    """
+    Fetch `{origin}/llms.txt` and return its text, or None if it does not exist.
+
+    Returns None on any non-200 response, timeout, or when the body looks like
+    HTML (single-page apps often serve their index for unknown paths with a 200).
+    """
+    import httpx
+
+    url = origin.rstrip("/") + "/llms.txt"
+    headers = {"User-Agent": f"Mozilla./5.0 ({aider_user_agent})"}
+    try:
+        with httpx.Client(
+            headers=headers, verify=verify_ssl, follow_redirects=True, timeout=timeout
+        ) as client:
+            response = client.get(url)
+    except Exception:
+        return None
+
+    if response.status_code != 200:
+        return None
+
+    content_type = response.headers.get("content-type", "").lower()
+    text = response.text
+    head = text.lstrip().lower()
+    if "html" in content_type or head.startswith("<!doctype html") or head.startswith("<html"):
+        return None
+
+    return text
+
+
 def slimdown_html(soup):
     for svg in soup.find_all("svg"):
         svg.decompose()
