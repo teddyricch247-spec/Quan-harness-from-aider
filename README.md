@@ -138,6 +138,7 @@ See the [installation instructions](https://aider.chat/docs/install.html) and [u
 - [Discord Community](https://discord.gg/Y7X7bhMQFV)
 - [Release notes](https://aider.chat/HISTORY.html)
 - [Blog](https://aider.chat/blog/)
+- [Aider + Ollama Local LLM Setup Guide (2026)](https://aicoderscope.com/blog/aider-local-ollama-setup-2026/) — Step-by-step guide to running Aider with a local Ollama model: choosing the right model size, configuring `--model` flags, and getting reliable edits without a cloud API key
 
 ## Kind Words From Users
 
