@@ -109,6 +109,8 @@ class Commands:
             # If the user was using the old model's default, switch to the new model's default
             new_edit_format = model.edit_format
 
+        if self.coder.repo:
+            self.coder.repo.models = model.commit_message_models()
         raise SwitchCoder(main_model=model, edit_format=new_edit_format)
 
     def cmd_editor_model(self, args):
@@ -133,6 +135,8 @@ class Commands:
             weak_model=model_name,
         )
         models.sanity_check_models(self.io, model)
+        if self.coder.repo:
+            self.coder.repo.models = model.commit_message_models()
         raise SwitchCoder(main_model=model)
 
     def cmd_chat_mode(self, args):

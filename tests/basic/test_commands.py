@@ -2224,3 +2224,21 @@ class TestCommands(TestCase):
             )
             self.assertEqual(new_coder.done_messages, [{"role": "user", "content": "d1"}])
             self.assertEqual(new_coder.cur_messages, [{"role": "user", "content": "c1"}])
+
+    def test_weak_model_change_updates_commit_message_model(self):
+        with GitTemporaryDirectory():
+            io = InputOutput(pretty=False, fancy_input=False, yes=True)
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            # Confirm repo was created and has the initial weak model
+            self.assertIsNotNone(coder.repo)
+            initial_model_names = [m.name for m in coder.repo.models]
+            self.assertNotIn("gpt-4", initial_model_names)
+
+            # cmd_weak_model raises SwitchCoder; catch it and check the shared repo was updated
+            with self.assertRaises(SwitchCoder):
+                commands.cmd_weak_model("gpt-4")
+
+            updated_model_names = [m.name for m in coder.repo.models]
+            self.assertIn("gpt-4", updated_model_names)
