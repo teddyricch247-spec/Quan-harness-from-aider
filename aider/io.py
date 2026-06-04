@@ -1159,7 +1159,10 @@ class InputOutput:
             # Use shorter of abs/rel paths for readonly files
             ro_paths = []
             for rel_path in read_only_files:
-                abs_path = os.path.abspath(os.path.join(self.root, rel_path))
+                try:
+                    abs_path = os.path.abspath(os.path.join(self.root, rel_path))
+                except (FileNotFoundError, OSError):
+                    abs_path = rel_path
                 ro_paths.append(Text(abs_path if len(abs_path) < len(rel_path) else rel_path))
 
             files_with_label = [Text("Readonly:")] + ro_paths
