@@ -81,6 +81,26 @@ class TestRepo(unittest.TestCase):
             self.assertIn("index", diffs)
             self.assertIn("АБВ", diffs)
 
+    def test_aiderignore_respects_configured_encoding(self):
+        # Regression: refresh_aider_ignore() read .aiderignore with the platform
+        # default encoding instead of the configured io.encoding, so an ignore
+        # file saved in a non-UTF8 encoding raised UnicodeDecodeError and aborted
+        # the session. It must honor io.encoding like the rest of GitRepo.
+        with GitTemporaryDirectory():
+            encoding = "cp1251"
+
+            # ASCII pattern plus a Cyrillic comment; the cp1251 bytes (0xc0 0xc1
+            # 0xc2) are invalid UTF-8, so a default-encoding read would raise.
+            aignore = Path(".aiderignore")
+            aignore.write_text("secret.txt\n# АБВ\n", encoding=encoding)
+
+            io = InputOutput(encoding=encoding)
+            git_repo = GitRepo(io, None, ".", aider_ignore_file=".aiderignore")
+
+            # Must not raise on the non-UTF8 file, and the pattern still applies.
+            self.assertTrue(git_repo.ignored_file("secret.txt"))
+            self.assertFalse(git_repo.ignored_file("keep.txt"))
+
     def test_diffs_detached_head(self):
         with GitTemporaryDirectory():
             repo = git.Repo()
