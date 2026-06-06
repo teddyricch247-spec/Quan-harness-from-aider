@@ -450,12 +450,32 @@ class InputOutput:
             self.tool_error(f"{filename}: {e}")
             return
 
+    def read_python_encoding(self, filename):
+        try:
+            with open(str(filename), "r", encoding="raw_unicode_escape") as f:
+                import re
+                line_number = 0
+                while line_number < 2:
+                    line  = f.readline()
+                    match = re.match(r"^[ \t\f]*#.*?coding[:=][ \t]*([-_.a-zA-Z0-9]+)", line)
+                    if match is not None:
+                        return match.group(1)
+                    line_number += 1
+        except:
+            return
+
     def read_text(self, filename, silent=False):
         if is_image_file(filename):
             return self.read_image(filename)
 
+        encoding = None
+        if str(filename)[-3:] == ".py":
+            encoding = self.read_python_encoding(filename)
+        if encoding is None:
+            encoding = self.encoding
+
         try:
-            with open(str(filename), "r", encoding=self.encoding) as f:
+            with open(str(filename), "r", encoding=encoding) as f:
                 return f.read()
         except FileNotFoundError:
             if not silent:
@@ -487,10 +507,16 @@ class InputOutput:
         if self.dry_run:
             return
 
+        encoding = None
+        if str(filename)[-3:] == ".py":
+            encoding = self.read_python_encoding(filename)
+        if encoding is None:
+            encoding = self.encoding
+
         delay = initial_delay
         for attempt in range(max_retries):
             try:
-                with open(str(filename), "w", encoding=self.encoding, newline=self.newline) as f:
+                with open(str(filename), "w", encoding=encoding, newline=self.newline) as f:
                     f.write(content)
                 return  # Successfully wrote the file
             except PermissionError as err:
