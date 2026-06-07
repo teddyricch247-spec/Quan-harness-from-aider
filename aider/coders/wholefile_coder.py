@@ -125,6 +125,23 @@ class WholeFileCoder(Coder):
         for path, fname_source, new_lines in edits:
             full_path = self.abs_root_path(path)
             new_lines = "".join(new_lines)
+            # Guard against silent data loss: a whole-file rewrite that's drastically
+            # shorter than the current file almost always means the model saw incomplete
+            # context (a truncated read, an oversized file, a hallucination). Confirm first.
+            if Path(full_path).exists():
+                current = self.io.read_text(full_path, silent=True) or ""
+                cur_n = current.count("\n") + 1
+                new_n = new_lines.count("\n") + 1
+                if cur_n >= 10 and new_n < cur_n * 0.5:
+                    if not self.io.confirm_ask(
+                        f"{path}: the rewrite is {new_n} lines vs {cur_n} now"
+                        f" - write it and drop {cur_n - new_n} lines?",
+                        default="n",
+                    ):
+                        self.io.tool_warning(
+                            f"Skipped {path} to avoid losing {cur_n - new_n} lines."
+                        )
+                        continue
             self.io.write_text(full_path, new_lines)
 
     def do_live_diff(self, full_path, new_lines, final):
