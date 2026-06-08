@@ -1327,6 +1327,17 @@ This command will print 'Hello, World!' to the console."""
             with patch("os.environ.get", return_value=None) as mock_env_get:
                 self.assertIsNone(coder.get_user_language())
 
+    def test_get_platform_info_handles_platform_failure(self):
+        io = InputOutput()
+        coder = Coder.create(self.GPT35, None, io=io)
+
+        with patch("aider.coders.base_coder.platform.platform", side_effect=OSError("timeout")):
+            platform_info = coder.get_platform_info()
+
+        self.assertIn("- Platform information unavailable\n", platform_info)
+        self.assertIn("- Shell:", platform_info)
+        self.assertIn("- Current date:", platform_info)
+
     def test_architect_coder_auto_accept_true(self):
         with GitTemporaryDirectory():
             io = InputOutput(yes=True)
