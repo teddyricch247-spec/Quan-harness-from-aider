@@ -34,6 +34,16 @@ cd /to/your/project
 aider --model openai/<model-name>
 ```
 
+For example, with RunAPI:
+
+```bash
+export OPENAI_API_BASE=https://runapi.ai/v1
+export OPENAI_API_KEY=<runapi-api-key>
+aider --model openai/<model-id>
+```
+
+Use a model ID from [RunAPI models](https://runapi.ai/models.md).
+
 See the [model warnings](warnings.html)
 section for information on warnings which will occur
 when working with models that aider is not familiar with.
