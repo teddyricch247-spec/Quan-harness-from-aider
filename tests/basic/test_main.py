@@ -338,6 +338,36 @@ class TestMain(TestCase):
 
         os.remove(message_file_path)
 
+    def test_test_flag_runs_with_failing_test_output(self):
+        test_errors = "I ran this command:\n\npytest\n\nAnd got this output:\n\nFAILED test.py\n"
+
+        with patch("aider.coders.Coder.create") as MockCoder:
+            mock_coder = MockCoder.return_value
+            mock_coder.commands.cmd_test.return_value = test_errors
+
+            main(
+                ["--yes", "--test", "--test-cmd", "pytest"],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+
+            mock_coder.commands.cmd_test.assert_called_once_with("pytest")
+            mock_coder.run.assert_called_once_with(with_message=test_errors)
+
+    def test_test_flag_does_not_run_when_tests_pass(self):
+        with patch("aider.coders.Coder.create") as MockCoder:
+            mock_coder = MockCoder.return_value
+            mock_coder.commands.cmd_test.return_value = None
+
+            main(
+                ["--yes", "--test", "--test-cmd", "pytest"],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+
+            mock_coder.commands.cmd_test.assert_called_once_with("pytest")
+            mock_coder.run.assert_not_called()
+
     def test_encodings_arg(self):
         fname = "foo.py"
 

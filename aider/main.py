@@ -1058,9 +1058,9 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             io.tool_error("No --test-cmd provided.")
             analytics.event("exit", reason="No test command provided")
             return 1
-        coder.commands.cmd_test(args.test_cmd)
-        if io.placeholder:
-            coder.run(io.placeholder)
+        test_errors = coder.commands.cmd_test(args.test_cmd)
+        if test_errors:
+            coder.run(with_message=test_errors)
 
     if args.commit:
         if args.dry_run:
