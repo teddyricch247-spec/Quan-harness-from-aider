@@ -38,6 +38,14 @@ It can also access
 local models that provide an
 [Open AI compatible API](/docs/llms/openai-compat.html).
 
+## Gateways
+{: .no_toc }
+
+Aider can connect to OpenAI-compatible gateways that provide access to many models
+through a single API, such as
+[OpenRouter](/docs/llms/openrouter.html) and
+[OpenPaths](/docs/llms/openpaths.html).
+
 ## Use a capable model
 {: .no_toc }
 
