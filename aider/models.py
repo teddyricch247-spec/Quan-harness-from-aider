@@ -62,6 +62,13 @@ gpt-3.5-turbo-1106
 gpt-3.5-turbo-0125
 gpt-3.5-turbo-16k
 gpt-3.5-turbo-16k-0613
+anyapi/openai/gpt-4o
+anyapi/openai/gpt-4o-mini
+anyapi/openai/gpt-5.5
+anyapi/openai/o3-mini
+anyapi/anthropic/claude-sonnet-4-20250514
+anyapi/anthropic/claude-opus-4-20250514
+anyapi/google/gemini-2.5-pro
 """
 
 OPENAI_MODELS = [ln.strip() for ln in OPENAI_MODELS.splitlines() if ln.strip()]
@@ -728,6 +735,7 @@ class Model(ModelSettings):
             anthropic="ANTHROPIC_API_KEY",
             groq="GROQ_API_KEY",
             fireworks_ai="FIREWORKS_API_KEY",
+            anyapi="ANYAPI_API_KEY",
         )
         var = None
         if model in OPENAI_MODELS:
