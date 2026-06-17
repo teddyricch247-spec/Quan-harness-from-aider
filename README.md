@@ -37,6 +37,10 @@ src="https://img.shields.io/badge/🔄%20Singularity-88%25-e74c3c?style=flat-squ
 <!--[[[end]]]-->  
 </p>
 
+<p align="center">
+  <a href="https://www.aiflowlearn.net/en/codex/aider"><img alt="Sagerbuddy Repo Guide" src="https://img.shields.io/badge/Sagerbuddy-Repo%20Guide-00B8A9?style=flat-square&logo=readthedocs&logoColor=white" /></a>
+</p>
+
 ## Features
 
 ### [Cloud and local LLMs](https://aider.chat/docs/llms.html)
