@@ -573,6 +573,21 @@ class Coder:
         self.abs_root_path_cache[key] = res
         return res
 
+    def is_path_in_root(self, path):
+        """Return True if `path` (resolved against the repo root) stays within the root.
+
+        Model-supplied edit paths may contain `..` segments or be absolute, which
+        would otherwise let an edit escape the repository root. This mirrors the
+        containment check already enforced by the interactive ``/add`` command
+        (see Commands.cmd_add) so that model-driven edits get the same protection.
+        """
+        try:
+            abs_path = Path(self.abs_root_path(path)).resolve()
+            root = Path(self.root).resolve()
+        except (OSError, RuntimeError, ValueError):
+            return False
+        return abs_path == root or abs_path.is_relative_to(root)
+
     fences = all_fences
     fence = fences[0]
 
@@ -2190,6 +2205,15 @@ class Coder:
 
     def allowed_to_edit(self, path):
         full_path = self.abs_root_path(path)
+
+        # Refuse edits that resolve outside the repo root (e.g. `..` traversal or
+        # absolute paths). This guard is independent of the confirmation prompts
+        # below, so it is enforced even when --yes-always is set. It matches the
+        # containment check already applied by the /add command.
+        if not self.is_path_in_root(path):
+            self.io.tool_error(f"Skipping edits to {path} which is not within {self.root}")
+            return
+
         if self.repo:
             need_to_add = not self.repo.path_in_repo(path)
         else:

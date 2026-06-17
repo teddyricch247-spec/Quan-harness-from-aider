@@ -101,6 +101,93 @@ class TestCoder(unittest.TestCase):
             self.assertTrue(coder.allowed_to_edit("added.txt"))
             self.assertTrue(coder.need_commit_before_edits)
 
+    def test_allowed_to_edit_outside_root(self):
+        # A model-chosen edit path that escapes the repo root (via `..` or an
+        # absolute path) must be refused, even with --yes-always (io.yes=True).
+        #
+        # The git repo is created in a nested subdir so the "outside root" target
+        # still lands inside the (auto-cleaned) temp dir, keeping the test from
+        # touching the shared OS temp directory even when run against old code.
+        with GitTemporaryDirectory() as temp_dir:
+            outside_dir = Path(temp_dir).resolve()
+            workspace = outside_dir / "workspace"
+            workspace.mkdir()
+            os.chdir(workspace)
+
+            repo = git.Repo.init(workspace)
+            repo.config_writer().set_value("user", "name", "Test User").release()
+            repo.config_writer().set_value("user", "email", "t@example.com").release()
+
+            fname = Path("added.txt")
+            fname.touch()
+            repo.git.add(str(fname))
+            repo.git.commit("-m", "init")
+
+            # --yes-always: confirm prompts would auto-approve, so the only thing
+            # that can stop an out-of-root write is the containment guard.
+            io = InputOutput(yes=True)
+            coder = Coder.create(self.GPT35, None, io, fnames=["added.txt"])
+
+            traversal_rel = os.path.join("..", "pwned_rel.txt")
+            traversal_abs = str(outside_dir / "pwned_abs.txt")
+
+            # The gate must refuse both relative-traversal and absolute escapes.
+            self.assertFalse(coder.allowed_to_edit(traversal_rel))
+            self.assertFalse(coder.allowed_to_edit(traversal_abs))
+
+            # And it must not have created/touched anything outside the root.
+            self.assertFalse((outside_dir / "pwned_rel.txt").exists())
+            self.assertFalse((outside_dir / "pwned_abs.txt").exists())
+
+            # In-root edits are still allowed (no regression).
+            self.assertTrue(coder.allowed_to_edit("new_in_root.txt"))
+
+    def test_editblock_create_file_outside_root_blocked(self):
+        # End-to-end: an edit block that names an out-of-root file must not be
+        # written to disk, even under --yes-always.
+        with GitTemporaryDirectory() as temp_dir:
+            outside_dir = Path(temp_dir).resolve()
+            workspace = outside_dir / "workspace"
+            workspace.mkdir()
+            os.chdir(workspace)
+
+            repo = git.Repo.init(workspace)
+            repo.config_writer().set_value("user", "name", "Test User").release()
+            repo.config_writer().set_value("user", "email", "t@example.com").release()
+
+            fname = Path("added.txt")
+            fname.write_text("one\n")
+            repo.git.add(str(fname))
+            repo.git.commit("-m", "init")
+
+            io = InputOutput(yes=True)
+            coder = Coder.create(
+                self.GPT35,
+                "diff",
+                io,
+                fnames=["added.txt"],
+            )
+
+            target = outside_dir / "pwned_editblock.txt"
+            self.assertFalse(target.exists())
+
+            # SEARCH/REPLACE block creating a brand-new file outside the root.
+            coder.partial_response_content = (
+                "Here you go:\n\n"
+                "../pwned_editblock.txt\n"
+                "<<<<<<< SEARCH\n"
+                "=======\n"
+                "owned\n"
+                ">>>>>>> REPLACE\n"
+            )
+
+            coder.apply_updates()
+
+            self.assertFalse(
+                target.exists(),
+                "edit block escaped the repo root and wrote an out-of-root file",
+            )
+
     def test_get_files_content(self):
         tempdir = Path(tempfile.mkdtemp())
 
