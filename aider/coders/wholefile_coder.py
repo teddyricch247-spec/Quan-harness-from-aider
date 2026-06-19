@@ -7,6 +7,49 @@ from .base_coder import Coder
 from .wholefile_prompts import WholeFilePrompts
 
 
+def _normalize_filename_from_chat_files(fname, chat_files):
+    if not fname:
+        return ""
+
+    fname = str(fname)
+    chat_files = [str(chat_file) for chat_file in chat_files]
+    if fname in chat_files:
+        return fname
+
+    path_name = Path(fname).name
+    if path_name in chat_files:
+        return path_name
+
+    matches = []
+    for chat_file in chat_files:
+        candidates = [chat_file]
+        basename = Path(chat_file).name
+        if basename != chat_file:
+            candidates.append(basename)
+
+        for candidate in candidates:
+            if not candidate or not fname.endswith(candidate):
+                continue
+            prefix = fname[: -len(candidate)]
+            if prefix and prefix[-1].isalnum():
+                continue
+            matches.append(chat_file)
+            break
+
+    matches = sorted(set(matches))
+    if len(matches) == 1:
+        return matches[0]
+    return ""
+
+
+def _filename_line_before_fence(lines, fence_index):
+    for previous_line in reversed(lines[:fence_index]):
+        candidate = previous_line.strip()
+        if candidate:
+            return candidate
+    return ""
+
+
 class WholeFileCoder(Coder):
     """A coder that operates on entire files for code modifications."""
 
@@ -33,8 +76,16 @@ class WholeFileCoder(Coder):
         fname = None
         fname_source = None
         new_lines = []
+        ignored_unlabeled_fence = False
+        ignoring_unlabeled_fence = False
         for i, line in enumerate(lines):
             if line.startswith(self.fence[0]) or line.startswith(self.fence[1]):
+                if ignoring_unlabeled_fence:
+                    ignoring_unlabeled_fence = False
+                    if mode == "diff":
+                        output.append(line)
+                    continue
+
                 if fname is not None:
                     # ending an existing block
                     saw_fname = None
@@ -54,7 +105,7 @@ class WholeFileCoder(Coder):
                 # fname==None ... starting a new block
                 if i > 0:
                     fname_source = "block"
-                    fname = lines[i - 1].strip()
+                    fname = _filename_line_before_fence(lines, i)
                     fname = fname.strip("*")  # handle **filename.py**
                     fname = fname.rstrip(":")
                     fname = fname.strip("`")
@@ -65,11 +116,14 @@ class WholeFileCoder(Coder):
                     if len(fname) > 250:
                         fname = ""
 
-                    # Did gpt prepend a bogus dir? It especially likes to
-                    # include the path/to prefix from the one-shot example in
-                    # the prompt.
-                    if fname and fname not in chat_files and Path(fname).name in chat_files:
-                        fname = Path(fname).name
+                    if chat_files:
+                        # Accept filename lines with harmless prose/punctuation around
+                        # the actual in-chat path, eg "Now produce final answer.foo.py".
+                        # Treat those as lower-confidence than exact filename lines.
+                        normalized_fname = _normalize_filename_from_chat_files(fname, chat_files)
+                        if normalized_fname and normalized_fname != fname:
+                            fname_source = "saw"
+                        fname = normalized_fname
                 if not fname:  # blank line? or ``` was on first line i==0
                     if saw_fname:
                         fname = saw_fname
@@ -78,11 +132,20 @@ class WholeFileCoder(Coder):
                         fname = chat_files[0]
                         fname_source = "chat"
                     else:
-                        # TODO: sense which file it is by diff size
-                        raise ValueError(
-                            f"No filename provided before {self.fence[0]} in file listing"
-                        )
+                        # Multi-file responses often include explanatory code snippets before
+                        # the final file listings. Skip those blocks and keep scanning.
+                        ignored_unlabeled_fence = True
+                        ignoring_unlabeled_fence = True
+                        fname = None
+                        fname_source = None
+                        new_lines = []
+                        if mode == "diff":
+                            output.append(line)
+                        continue
 
+            elif ignoring_unlabeled_fence:
+                if mode == "diff":
+                    output.append(line)
             elif fname is not None:
                 new_lines.append(line)
             else:
@@ -104,6 +167,9 @@ class WholeFileCoder(Coder):
 
         if fname:
             edits.append((fname, fname_source, new_lines))
+
+        if not edits and ignored_unlabeled_fence and len(chat_files) > 1:
+            raise ValueError(f"No filename provided before {self.fence[0]} in file listing")
 
         seen = set()
         refined_edits = []

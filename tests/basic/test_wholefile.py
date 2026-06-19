@@ -316,6 +316,88 @@ after b
             updated_content = f.read()
         self.assertEqual(updated_content, new_content)
 
+    def test_update_files_with_blank_line_between_filename_and_fence(self):
+        fname_a = Path("a.txt")
+        fname_b = Path("b.txt")
+        fname_a.write_text("before a\n")
+        fname_b.write_text("before b\n")
+
+        response = """
+a.txt
+
+```
+after a
+```
+
+b.txt
+
+```
+after b
+```
+"""
+        io = InputOutput(yes=True)
+        coder = WholeFileCoder(main_model=self.GPT35, io=io, fnames=[fname_a, fname_b])
+        coder.partial_response_content = response
+
+        edited_files = coder.apply_updates()
+
+        self.assertIn(str(fname_a), edited_files)
+        self.assertIn(str(fname_b), edited_files)
+        self.assertEqual(fname_a.read_text(), "after a\n")
+        self.assertEqual(fname_b.read_text(), "after b\n")
+
+    def test_atomic_prefers_final_filename_embedded_in_prose_over_earlier_fence(self):
+        sample_file = "connect.js"
+        original = "export const oldValue = 0;\n"
+        Path(sample_file).write_text(original)
+
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, "atomic", io=io, fnames=[sample_file])
+        coder.partial_response_content = (
+            "Here is a board example that is not a file listing:\n\n"
+            "```\n"
+            ". O . X .\n"
+            "```\n\n"
+            "Now produce final answer.connect.js\n"
+            "```javascript\n"
+            "export const newValue = 1;\n"
+            "```\n"
+        )
+
+        edited_files = coder.apply_updates()
+
+        self.assertEqual(edited_files, {sample_file})
+        self.assertEqual(Path(sample_file).read_text(), "export const newValue = 1;\n")
+
+    def test_atomic_skips_unlabeled_snippet_before_multi_file_listings(self):
+        header = "knapsack.h"
+        source = "knapsack.cpp"
+        Path(header).write_text("old header\n")
+        Path(source).write_text("old source\n")
+
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, "atomic", io=io, fnames=[header, source])
+        coder.partial_response_content = (
+            "The tests expect this C++ shape:\n\n"
+            "```cpp\n"
+            "int maximum_value(int max_weight);\n"
+            "```\n\n"
+            "We must output only file listings.knapsack.h\n"
+            "```\n"
+            "new header\n"
+            "```\n"
+            "knapsack.cpp\n"
+            "```\n"
+            "new source\n"
+            "```\n"
+        )
+
+        edited_files = coder.apply_updates()
+
+        self.assertEqual(edited_files, {header, source})
+        self.assertEqual(Path(header).read_text(), "new header\n")
+        self.assertEqual(Path(source).read_text(), "new source\n")
+
     def test_full_edit(self):
         # Create a few temporary files
         _, file1 = tempfile.mkstemp()
@@ -353,6 +435,69 @@ Do this:
 
         # check for one trailing newline
         self.assertEqual(content, new_content + "\n")
+
+    def test_atomic_edit_format_can_be_created(self):
+        from aider.coders.atomic_coder import AtomicWholeFileCoder
+
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, "atomic", io=io, fnames=[])
+
+        self.assertIsInstance(coder, AtomicWholeFileCoder)
+        self.assertEqual(coder.edit_format, "atomic")
+
+    def test_atomic_edit_format_rejects_invalid_python_before_write(self):
+        sample_file = "sample.py"
+        original = "def ok():\n    return 1\n"
+        Path(sample_file).write_text(original)
+
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, "atomic", io=io, fnames=[sample_file])
+        coder.partial_response_content = (
+            f"{sample_file}\n```python\n"
+            "def broken(:\n    return 2\n```"
+        )
+
+        edited_files = coder.apply_updates()
+
+        self.assertEqual(edited_files, {sample_file})
+        self.assertEqual(Path(sample_file).read_text(), original)
+        self.assertEqual(coder.num_malformed_responses, 1)
+
+    def test_atomic_edit_format_ignores_files_not_in_chat(self):
+        sample_file = "sample.py"
+        bogus_file = "Thus final answer.sample.py"
+        Path(sample_file).write_text("def value():\n    return 1\n")
+
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, "atomic", io=io, fnames=[sample_file])
+        coder.partial_response_content = (
+            f"{bogus_file}\n```python\n"
+            "def value():\n    return 999\n```\n"
+            f"{sample_file}\n```python\n"
+            "def value():\n    return 2\n```\n"
+        )
+
+        edited_files = coder.apply_updates()
+
+        self.assertEqual(edited_files, {sample_file})
+        self.assertFalse(Path(bogus_file).exists())
+        self.assertEqual(Path(sample_file).read_text(), "def value():\n    return 2\n")
+
+    def test_atomic_prompt_requires_file_listings_without_explanation(self):
+        from aider.coders.atomic_coder import AtomicWholeFilePrompts
+
+        prompt = AtomicWholeFilePrompts()
+        assistant_examples = [
+            message["content"].lstrip()
+            for message in prompt.example_messages
+            if message["role"] == "assistant"
+        ]
+
+        self.assertNotIn("Explain any needed changes", prompt.main_system)
+        self.assertIn("Return only file listings", prompt.main_system)
+        self.assertTrue(assistant_examples)
+        self.assertTrue(assistant_examples[0].startswith("sample.py\n"))
+        self.assertNotIn("Ok, I will", "\n".join(assistant_examples))
 
 
 if __name__ == "__main__":

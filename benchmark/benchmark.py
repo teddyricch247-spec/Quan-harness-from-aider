@@ -158,6 +158,34 @@ def resolve_dirname(dirname, use_single_prior, make_new):
     return dirname
 
 
+def selected_language_dirs(base_dir, languages=None):
+    """Return language dirs filtered by the comma-separated --languages option."""
+    base_dir = Path(base_dir)
+    lang_dirs = [d for d in base_dir.iterdir() if d.is_dir()]
+
+    if not languages:
+        return lang_dirs
+
+    requested = set(lang.strip().lower() for lang in languages.split(",") if lang.strip())
+    if not requested:
+        return lang_dirs
+
+    return [d for d in lang_dirs if d.name.lower() in requested]
+
+
+def copy_selected_language_practice_dirs(original_dname, dirname, languages=None):
+    """Copy only selected language practice dirs into a benchmark result dir."""
+    os.makedirs(dirname, exist_ok=True)
+    for lang_dir in selected_language_dirs(original_dname, languages):
+        practice_dir = lang_dir / "exercises" / "practice"
+        if not practice_dir.exists():
+            continue
+
+        dest_lang_dir = Path(dirname) / lang_dir.name / "exercises" / "practice"
+        os.makedirs(dest_lang_dir.parent, exist_ok=True)
+        shutil.copytree(practice_dir, dest_lang_dir)
+
+
 @app.command()
 def main(
     dirnames: Optional[List[str]] = typer.Argument(None, help="Directory names"),
@@ -259,13 +287,9 @@ def main(
         """Get all exercise directories for specified languages (or all if none specified)"""
         base_dir = Path(base_dir)
 
-        # Get available language dirs
-        lang_dirs = [d for d in base_dir.iterdir() if d.is_dir()]
+        lang_dirs = selected_language_dirs(base_dir, languages)
 
-        # Filter to requested languages if specified
         if languages:
-            requested = set(lang.strip().lower() for lang in languages.split(","))
-            lang_dirs = [d for d in lang_dirs if d.name.lower() in requested]
             dump(lang_dirs)
             if not lang_dirs:
                 print(f"No matching language directories found for: {languages}")
@@ -307,15 +331,7 @@ def main(
     if not dirname.exists():
         print(f"Copying {original_dname} -> {dirname} ...")
         # Only copy the practice subdirs with exercises
-        os.makedirs(dirname, exist_ok=True)
-        for lang_dir in original_dname.iterdir():
-            if not lang_dir.is_dir():
-                continue
-            practice_dir = lang_dir / "exercises" / "practice"
-            if practice_dir.exists():
-                dest_lang_dir = dirname / lang_dir.name / "exercises" / "practice"
-                os.makedirs(dest_lang_dir.parent, exist_ok=True)
-                shutil.copytree(practice_dir, dest_lang_dir)
+        copy_selected_language_practice_dirs(original_dname, dirname, languages)
         print("...done")
 
     test_dnames = sorted(str(d.relative_to(original_dname)) for d in exercise_dirs)
@@ -676,6 +692,57 @@ def run_test(original_dname, testdir, *args, **kwargs):
         results_fname.write_text(json.dumps(dict(exception=traceback.format_exc())))
 
 
+def original_exercise_file(original_dname, testdir, file_path):
+    lang_part = str(testdir).split("/exercises/practice/")[0]
+    return (
+        original_dname
+        / Path(lang_part).name
+        / "exercises"
+        / "practice"
+        / testdir.name
+        / file_path
+    )
+
+
+def restore_original_exercise_file(original_dname, testdir, file_path):
+    dst = testdir / Path(file_path)
+    original_fname = original_exercise_file(original_dname, testdir, file_path)
+    if original_fname.exists():
+        os.makedirs(dst.parent, exist_ok=True)
+        shutil.copy(original_fname, dst)
+    return dst
+
+
+def collect_benchmark_chat_files(original_dname, testdir, config, ignore_files):
+    files_config = config.get("files", {})
+    solution_files = set(files_config.get("solution", []))
+    editor_files = set(files_config.get("editor", []))
+
+    solution_files.difference_update(ignore_files)
+    editor_files.difference_update(ignore_files)
+    editor_files.difference_update(solution_files)
+
+    fnames = []
+    for file_path in sorted(solution_files):
+        src = testdir / Path(file_path)
+        if src.exists():
+            fnames.append(
+                restore_original_exercise_file(original_dname, testdir, file_path)
+            )
+        else:
+            print(f"Warning: Solution file not found: {src}")
+
+    read_only_fnames = []
+    for file_path in sorted(editor_files):
+        src = testdir / Path(file_path)
+        if src.exists():
+            read_only_fnames.append(
+                restore_original_exercise_file(original_dname, testdir, file_path)
+            )
+
+    return fnames, read_only_fnames
+
+
 def run_test_real(
     original_dname,
     testdir,
@@ -715,7 +782,6 @@ def run_test_real(
             print(f"{results_fname} failed to parse, redoing...")
 
     # Read solution and test files from config
-    fnames = []
     config_file = testdir / ".meta/config.json"
     if not config_file.exists():
         raise ValueError(f"No config file found: {config_file}")
@@ -726,7 +792,6 @@ def run_test_real(
     # Get file sets from config
     test_files = config.get("files", {}).get("test", [])
     example_files = config.get("files", {}).get("example", [])
-    solution_files = set(config.get("files", {}).get("solution", []))
 
     # Forcibly ignore certain files not covered by test_files and example_files
     ignore_files = set(
@@ -744,30 +809,12 @@ def run_test_real(
     ignore_files.update(test_files)
     ignore_files.update(example_files)
 
-    # Remove any ignore files from the solution set that LLM will edit
-    solution_files.difference_update(ignore_files)
-
-    # Copy all solution files
-    for file_path in solution_files:
-        src = testdir / Path(file_path)
-        if src.exists():
-            fnames.append(src)
-            # restore the original file, in case we interrupted a prev run
-            # Find the original file in the language-specific practice dir
-            lang_part = str(testdir).split("/exercises/practice/")[0]
-            original_fname = (
-                original_dname
-                / Path(lang_part).name
-                / "exercises"
-                / "practice"
-                / testdir.name
-                / file_path
-            )
-            if original_fname.exists():
-                os.makedirs(src.parent, exist_ok=True)
-                shutil.copy(original_fname, src)
-        else:
-            print(f"Warning: Solution file not found: {src}")
+    fnames, read_only_fnames = collect_benchmark_chat_files(
+        original_dname,
+        testdir,
+        config,
+        ignore_files,
+    )
 
     file_list = " ".join(fname.name for fname in fnames)
 
@@ -817,13 +864,16 @@ def run_test_real(
     dump(main_model)
     dump(edit_format)
     show_fnames = ",".join(map(str, fnames))
+    show_read_only_fnames = ",".join(map(str, read_only_fnames))
     print("fnames:", show_fnames)
+    print("read_only_fnames:", show_read_only_fnames)
 
     coder = Coder.create(
         main_model,
         edit_format,
         io,
         fnames=fnames,
+        read_only_fnames=read_only_fnames,
         use_git=False,
         stream=False,
         verbose=verbose,
@@ -902,8 +952,7 @@ def run_test_real(
 
         print(errors[-1])
         errors = "\n".join(errors)
-        instructions = errors
-        instructions += prompts.test_failures.format(file_list=file_list)
+        instructions = build_test_failure_instructions(errors, testdir, file_list)
 
     # Clean up build directories after all attempts
     # Rust target/debug
@@ -978,6 +1027,11 @@ def run_test_real(
     return results
 
 
+def build_test_failure_instructions(errors, testdir, file_list):
+    errors = str(errors or "")  # standard upstream harness: raw test output, no injection
+    return errors + prompts.test_failures.format(file_list=file_list)
+
+
 def run_unit_tests(original_dname, testdir, history_fname, test_files):
     timeout = 60 * 3
 
@@ -1049,8 +1103,11 @@ def run_unit_tests(original_dname, testdir, history_fname, test_files):
 
 
 def cleanup_test_output(output, testdir):
-    # remove timing info, to avoid randomizing the response to GPT
-    res = re.sub(r"\bin \d+\.\d+s\b", "", output)
+    # Remove timing info to avoid randomizing the response to GPT.
+    res = re.sub(r"Ran \d+ tests? in \d+\.\d+s", "", output)
+    res = re.sub(r"\bin \d+\.\d+s\b", "", res)
+    res = re.sub(r"^={5,}$", "====", res, flags=re.MULTILINE)
+    res = re.sub(r"^-{5,}$", "----", res, flags=re.MULTILINE)
     res = res.replace(str(testdir), str(testdir.name))
     return res
 
