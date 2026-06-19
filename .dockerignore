@@ -5,6 +5,9 @@ OLD*
 *.pyc
 .DS_Store
 .env
-.venv
+.venv*
+.pytest_cache
+__pycache__/
+*.egg-info
 .aider.*
 build
