@@ -546,6 +546,27 @@ class PatchCoder(Coder):
         action = PatchAction(type=ActionType.ADD, path="", new_content="\n".join(added_lines))
         return action, index
 
+    def _assert_within_root(self, rel_path, abs_path):
+        """Reject a patch target that resolves outside the repository root.
+
+        Patch paths -- including ``*** Move to:`` targets -- come straight from
+        the LLM response. Without this check a path such as ``../../.bashrc``
+        would resolve outside the project, letting a patch create, overwrite or
+        delete files anywhere the user can write. The move target in particular
+        never passes through the in-chat edit confirmation, so this is the only
+        guard standing between LLM output and an arbitrary-file write.
+
+        Args:
+            rel_path: The path as written in the patch (used for the message).
+            abs_path: The resolved absolute path to validate.
+
+        Raises:
+            DiffError: If ``abs_path`` is not inside the repository root.
+        """
+        root = pathlib.Path(self.root).resolve()
+        if not pathlib.Path(abs_path).resolve().is_relative_to(root):
+            raise DiffError(f"Refusing to edit path outside the project root: {rel_path}")
+
     def apply_edits(self, edits: List[PatchAction]):
         """
         Applies the parsed PatchActions to the corresponding files.
@@ -561,6 +582,8 @@ class PatchCoder(Coder):
             # action.path is the canonical path within the action logic
             full_path = self.abs_root_path(action.path)
             path_obj = pathlib.Path(full_path)
+            # The path is LLM-supplied; never let an edit land outside the repo.
+            self._assert_within_root(action.path, full_path)
 
             try:
                 if action.type == ActionType.ADD:
@@ -603,6 +626,10 @@ class PatchCoder(Coder):
                     target_full_path = (
                         self.abs_root_path(action.move_path) if action.move_path else full_path
                     )
+                    if action.move_path:
+                        # The move target skips the edit confirmation entirely,
+                        # so this is the only check keeping it inside the repo.
+                        self._assert_within_root(action.move_path, target_full_path)
                     target_path_obj = pathlib.Path(target_full_path)
 
                     if action.move_path:
