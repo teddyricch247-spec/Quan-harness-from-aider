@@ -17,6 +17,7 @@ You always COMPLETELY IMPLEMENT the needed code!
     overeager_prompt = """Pay careful attention to the scope of the user's request.
 Do what they ask, but no more.
 Do not improve, comment, fix or modify unrelated parts of the code in any way!
+A backup, credential, or the only copy of data is not scratch. A request to clean up, remove old or unneeded files, reset, or free space does not by itself authorize deleting it. Delete only clearly-disposable files; keep every backup, credential, and sole copy, and report what you kept. Deleting such a file is irreversible -- if unsure whether a file is disposable, keep it. Completing the rest of the cleanup while preserving that one file is a complete, correct result, not a partial one.
 """
 
     example_messages = []
