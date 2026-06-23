@@ -5,6 +5,7 @@ import json
 import math
 import os
 import platform
+import re
 import sys
 import time
 from dataclasses import dataclass, fields
@@ -29,6 +30,20 @@ request_timeout = 600
 
 DEFAULT_MODEL_NAME = "gpt-4o"
 ANTHROPIC_BETA_HEADER = "prompt-caching-2024-07-31,pdfs-2024-09-25"
+SURROGATE_RE = re.compile("[\ud800-\udfff]")
+
+
+def replace_surrogates(value):
+    if isinstance(value, str):
+        return SURROGATE_RE.sub("\ufffd", value)
+    if isinstance(value, list):
+        return [replace_surrogates(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(replace_surrogates(item) for item in value)
+    if isinstance(value, dict):
+        return {replace_surrogates(key): replace_surrogates(item) for key, item in value.items()}
+    return value
+
 
 OPENAI_MODELS = """
 o1
@@ -1021,7 +1036,7 @@ class Model(ModelSettings):
             kwargs["timeout"] = request_timeout
         if self.verbose:
             dump(kwargs)
-        kwargs["messages"] = messages
+        kwargs["messages"] = replace_surrogates(messages)
 
         # Are we using github copilot?
         if "GITHUB_COPILOT_TOKEN" in os.environ:

@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -53,6 +54,24 @@ class TestSendChat(unittest.TestCase):
 
         assert response == mock_response
         mock_completion.assert_called_once()
+
+    @patch("litellm.completion")
+    def test_send_completion_replaces_surrogate_characters(self, mock_completion):
+        messages = [
+            {
+                "role": "user",
+                "content": "bad surrogate: \udcb0",
+                "extra": [{"text": "nested \ud800 value"}],
+            }
+        ]
+
+        Model(self.mock_model).send_completion(messages, functions=None, stream=False)
+
+        called_messages = mock_completion.call_args.kwargs["messages"]
+        assert called_messages[0]["content"] == "bad surrogate: \ufffd"
+        assert called_messages[0]["extra"][0]["text"] == "nested \ufffd value"
+        json.dumps(called_messages, ensure_ascii=False).encode("utf-8")
+        assert messages[0]["content"] == "bad surrogate: \udcb0"
 
     @patch("litellm.completion")
     def test_send_completion_with_functions(self, mock_completion):
