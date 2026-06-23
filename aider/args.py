@@ -589,6 +589,7 @@ def get_parser(default_config_files, git_root):
     )
     group.add_argument(
         "--analytics-posthog-project-api-key",
+        dest="analytics_posthog_project_api_key",
         metavar="ANALYTICS_POSTHOG_PROJECT_API_KEY",
         help="Send analytics to custom PostHog project",
     )
@@ -775,6 +776,14 @@ def get_parser(default_config_files, git_root):
         help="Load and execute /commands from a file on launch",
     ).complete = shtab.FILE
     group.add_argument(
+        "--aider-md",
+        metavar="AIDER_MD_FILE",
+        help=(
+            "Specify a .aider.md file with project-level instructions for the LLM"
+            " (default: search for .aider.md in git root, cwd or home directory)"
+        ),
+    ).complete = shtab.FILE
+    group.add_argument(
         "--encoding",
         default="utf-8",
         help="Specify the encoding for input and output (default: utf-8)",
@@ -848,6 +857,15 @@ def get_parser(default_config_files, git_root):
     group.add_argument(
         "--editor",
         help="Specify which editor to use for the /editor command",
+    )
+    group.add_argument(
+        "--auto-session",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Enable/disable auto-saving and restoring of the chat session's file list"
+            " (.aider.session.json) in the working directory (default: True)"
+        ),
     )
 
     supported_shells_list = sorted(list(shtab.SUPPORTED_SHELLS))

@@ -29,6 +29,7 @@ from aider.deprecated import handle_deprecated_model_args
 from aider.format_settings import format_settings, scrub_sensitive_info
 from aider.history import ChatSummary
 from aider.io import InputOutput
+from aider.session import SessionState
 from aider.llm import litellm  # noqa: F401; properly init litellm on launch
 from aider.models import ModelSettings
 from aider.onboarding import offer_openrouter_oauth, select_default_model
@@ -38,6 +39,9 @@ from aider.versioncheck import check_version, install_from_main_branch, install_
 from aider.watch import FileWatcher
 
 from .dump import dump  # noqa: F401
+
+
+DANGEROUS_CONFIG_KEYS = ["test-cmd", "lint-cmd", "test", "lint", "auto-test", "auto-lint"]
 
 
 def check_config_files_for_yes(config_files):
@@ -57,12 +61,82 @@ def check_config_files_for_yes(config_files):
     return found
 
 
+def _get_repo_aider_conf_files(git_root):
+    """Get list of repo-root .aider.conf.yml files to check for security scanning."""
+    files = []
+    try:
+        cwd_conf = Path.cwd() / ".aider.conf.yml"
+        if cwd_conf.exists():
+            files.append(cwd_conf)
+    except OSError:
+        pass
+
+    if git_root:
+        git_conf = Path(git_root) / ".aider.conf.yml"
+        if git_conf.exists() and git_conf not in files:
+            files.append(git_conf)
+    return files
+
+
+def _has_keys_in_repo_config(git_root, *keys):
+    """
+    Check if any of the given keys are set in repo-root .aider.conf.yml files.
+    """
+    for config_file in _get_repo_aider_conf_files(git_root):
+        try:
+            with open(config_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    for key in keys:
+                        if line.startswith(key + ":"):
+                            return True
+        except OSError:
+            pass
+    return False
+
+
+def check_config_files_for_dangerous_keys(io, git_root):
+    """
+    Scan repo-root config files for keys that could execute arbitrary shell commands
+    and warn the user. This is a security measure against untrusted repositories.
+    """
+    found_keys = []
+    for config_file in _get_repo_aider_conf_files(git_root):
+        try:
+            with open(config_file, "r", encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    for key in DANGEROUS_CONFIG_KEYS:
+                        if line.startswith(key + ":"):
+                            found_keys.append((config_file, key))
+        except OSError:
+            pass
+
+    if found_keys:
+        io.tool_warning(
+            "Security Notice: This repository's .aider.conf.yml contains configuration keys"
+            " that can execute arbitrary commands on your machine."
+        )
+        for config_file, key in found_keys:
+            io.tool_warning(f"  - {key} in {config_file}")
+        io.tool_warning(
+            "Aider will ask for your confirmation before running any commands sourced from"
+            " repository configuration."
+        )
+        return True
+    return False
+
+
 def get_git_root():
     """Try and guess the git repo, since the conf.yml can be at the repo root"""
     try:
         repo = git.Repo(search_parent_directories=True)
         return repo.working_tree_dir
-    except (git.InvalidGitRepositoryError, FileNotFoundError):
+    except (git.InvalidGitRepositoryError, git.NoSuchPathError, FileNotFoundError):
         return None
 
 
@@ -265,14 +339,16 @@ def launch_gui(args):
 
     st_args += ["--"] + args
 
-    cli.main(st_args)
-
-    # from click.testing import CliRunner
-    # runner = CliRunner()
-    # from streamlit.web import bootstrap
-    # bootstrap.load_config_options(flag_options={})
-    # cli.main_run(target, args)
-    # sys.argv = ['streamlit', 'run', '--'] + args
+    try:
+        cli.main(st_args)
+    except RuntimeError:
+        # Windows: Ctrl+C during asyncio event loop can cause
+        # RuntimeError: reentrant call inside <_io.BufferedWriter>
+        # when Streamlit's signal handler tries to print to stdout
+        # while the BufferedWriter is locked by select().
+        # This is a known issue with colorama/ansitowin32 on Windows.
+        # Swallow the error since the user already pressed Ctrl+C to stop.
+        pass
 
 
 def parse_lint_cmds(lint_cmds, io):
@@ -677,19 +753,40 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             io.tool_output(f"Loaded {fname}")
 
     all_files = args.files + (args.file or [])
-    fnames = [str(Path(fn).resolve()) for fn in all_files]
+    fnames = []
+    for fn in all_files:
+        try:
+            fnames.append(str(Path(fn).resolve()))
+        except OSError:
+            fnames.append(str(fn))  # fallback if path is too long or otherwise invalid
     read_only_fnames = []
     for fn in args.read or []:
-        path = Path(fn).expanduser().resolve()
-        if path.is_dir():
-            read_only_fnames.extend(str(f) for f in path.rglob("*") if f.is_file())
+        try:
+            path = Path(fn).expanduser().resolve()
+        except OSError:
+            path = Path(fn).expanduser()
+        try:
+            is_dir = path.is_dir()
+        except OSError:
+            is_dir = False
+        if is_dir:
+            try:
+                read_only_fnames.extend(
+                    str(f) for f in path.rglob("*") if f.is_file()
+                )
+            except OSError:
+                pass  # skip if we can't enumerate the directory
         else:
             read_only_fnames.append(str(path))
 
     if len(all_files) > 1:
         good = True
         for fname in all_files:
-            if Path(fname).is_dir():
+            try:
+                is_dir = Path(fname).is_dir()
+            except OSError:
+                is_dir = False
+            if is_dir:
                 io.tool_error(f"{fname} is a directory, not provided alone.")
                 good = False
         if not good:
@@ -701,9 +798,16 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     git_dname = None
     if len(all_files) == 1:
-        if Path(all_files[0]).is_dir():
+        try:
+            first_is_dir = Path(all_files[0]).is_dir()
+        except OSError:
+            first_is_dir = False
+        if first_is_dir:
             if args.git:
-                git_dname = str(Path(all_files[0]).resolve())
+                try:
+                    git_dname = str(Path(all_files[0]).resolve())
+                except OSError:
+                    git_dname = all_files[0]  # fallback if path is too long
                 fnames = []
             else:
                 io.tool_error(f"{all_files[0]} is a directory, but --no-git selected.")
@@ -872,6 +976,19 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         if main_model.edit_format in ("diff", "whole", "diff-fenced"):
             main_model.edit_format = "editor-" + main_model.edit_format
 
+    # Search for .aider.md file
+    aider_md_files = generate_search_path_list(
+        ".aider.md", git_root, args.aider_md
+    )
+    aider_md_path = None
+    # Iterate in reverse so most specific path (command_line -> CWD -> git_root -> homedir) wins
+    for fname in reversed(aider_md_files):
+        if Path(fname).exists():
+            aider_md_path = str(Path(fname).resolve())
+            if args.verbose:
+                io.tool_output(f"Found .aider.md: {aider_md_path}")
+            break
+
     if args.verbose:
         io.tool_output("Model metadata:")
         io.tool_output(json.dumps(main_model.info, indent=4))
@@ -951,6 +1068,34 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         args.max_chat_history_tokens or main_model.max_chat_history_tokens,
     )
 
+    # Auto-restore session if enabled and no explicit file args
+    if args.auto_session and not fnames and not read_only_fnames:
+        session_root = git_root or os.getcwd()
+        session = SessionState(session_root)
+        session_data = session.read()
+        if session_data and not args.yes_always:
+            file_count = len(session_data.get("files", {}).get("editable", []))
+            read_only_count = len(session_data.get("files", {}).get("read_only", []))
+            total = file_count + read_only_count
+            if total > 0:
+                io.tool_output(
+                    f"Found previous session with {file_count} editable and"
+                    f" {read_only_count} read-only files."
+                )
+                if io.confirm_ask("Restore previous session?"):
+                    for rel_fname in session_data["files"]["editable"]:
+                        abs_fname = os.path.join(session_root, rel_fname)
+                        if os.path.isfile(abs_fname):
+                            fnames.append(abs_fname)
+                    for rel_fname in session_data["files"]["read_only"]:
+                        abs_fname = os.path.join(session_root, rel_fname)
+                        if os.path.isfile(abs_fname):
+                            read_only_fnames.append(abs_fname)
+                    io.tool_output("Restored session files.")
+                else:
+                    session.clear()
+                    io.tool_output("Session cleared.")
+
     if args.cache_prompts and args.map_refresh == "auto":
         args.map_refresh = "files"
 
@@ -965,6 +1110,9 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         map_tokens = main_model.get_repo_map_tokens()
     else:
         map_tokens = args.map_tokens
+
+    # Warn about dangerous config keys in repo-root config files
+    check_config_files_for_dangerous_keys(io, git_root)
 
     # Track auto-commits configuration
     analytics.event("auto_commits", enabled=bool(args.auto_commits))
@@ -1004,6 +1152,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             auto_copy_context=args.copy_paste,
             auto_accept_architect=args.auto_accept_architect,
             add_gitignore_files=args.add_gitignore_files,
+            aider_md_path=aider_md_path,
         )
     except UnknownEditFormat as err:
         io.tool_error(str(err))
@@ -1051,6 +1200,16 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         return
 
     if args.lint:
+        if _has_keys_in_repo_config(git_root, "lint", "lint-cmd"):
+            if not io.confirm_ask(
+                "The repository's .aider.conf.yml has enabled linting."
+                " Allow lint commands to run?",
+                default="n",
+                explicit_yes_required=True,
+            ):
+                io.tool_output("Lint declined. Skipping.")
+                analytics.event("exit", reason="Lint declined from repo config")
+                return 1
         coder.commands.cmd_lint(fnames=fnames)
 
     if args.test:
@@ -1058,6 +1217,16 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             io.tool_error("No --test-cmd provided.")
             analytics.event("exit", reason="No test command provided")
             return 1
+        if _has_keys_in_repo_config(git_root, "test", "test-cmd"):
+            if not io.confirm_ask(
+                "The repository's .aider.conf.yml has configured a test command."
+                " Allow it to run?",
+                default="n",
+                explicit_yes_required=True,
+            ):
+                io.tool_output("Test declined. Skipping.")
+                analytics.event("exit", reason="Test declined from repo config")
+                return 1
         coder.commands.cmd_test(args.test_cmd)
         if io.placeholder:
             coder.run(io.placeholder)
