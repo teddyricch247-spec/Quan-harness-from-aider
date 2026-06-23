@@ -17,3 +17,9 @@ aider/_version.py
 .gitattributes
 tmp.benchmarks/
 .docker_bash_history
+
+# API keys / secrets. aider loads `.env` from the git root by default
+# (see --env-file), so ignore it to avoid committing keys.
+.env
+.env.*
+!.env.example
