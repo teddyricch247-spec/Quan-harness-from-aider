@@ -20,6 +20,7 @@ Aider works best with these models, which are skilled at editing code:
 - [DeepSeek R1 and V3](/docs/llms/deepseek.html)
 - [Claude 3.7 Sonnet](/docs/llms/anthropic.html)
 - [OpenAI o3, o4-mini and GPT-4.1](/docs/llms/openai.html)
+- [TrustedRouter](/docs/llms/trustedrouter.html) for OpenAI-compatible private routing
 
 
 ## Free models
@@ -29,6 +30,12 @@ Aider works with a number of **free** API providers:
 
 - [OpenRouter offers free access to many models](https://openrouter.ai/models/?q=free), with limitations on daily usage.
 - Google's [Gemini 2.5 Pro Exp](/docs/llms/gemini.html) works very well with aider.
+
+## Private routing
+{: .no_toc }
+
+Aider can use [TrustedRouter](/docs/llms/trustedrouter.html) as an
+OpenAI-compatible endpoint for privacy-sensitive coding workflows.
 
 ## Local models
 {: .no_toc }
@@ -51,4 +58,3 @@ and commit the changes...
 this is usually because the model isn't capable of properly
 returning "code edits".
 Models weaker than GPT 3.5 may have problems working well with aider.
-
