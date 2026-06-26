@@ -683,6 +683,10 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         path = Path(fn).expanduser().resolve()
         if path.is_dir():
             read_only_fnames.extend(str(f) for f in path.rglob("*") if f.is_file())
+        elif not path.exists() and git_root:
+            # try to find file in git_root
+            path = Path(git_root).joinpath(fn)
+            read_only_fnames.append(str(path))
         else:
             read_only_fnames.append(str(path))
 
