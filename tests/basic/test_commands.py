@@ -213,6 +213,27 @@ class TestCommands(TestCase):
         self.assertEqual(len(coder.abs_fnames), 1)
         self.assertTrue(fname.exists())
 
+    def test_cmd_add_subtree_only_creates_unmatched_file_in_cwd(self):
+        with GitTemporaryDirectory():
+            repo_root = Path.cwd()
+            subdir = repo_root / "subdir"
+            subdir.mkdir()
+            start_cwd = Path.cwd()
+            os.chdir(subdir)
+            try:
+                io = InputOutput(pretty=False, fancy_input=False, yes=True)
+                repo = GitRepo(io, None, None, subtree_only=True)
+                coder = Coder.create(self.GPT35, None, io, repo=repo)
+                commands = Commands(io, coder)
+
+                commands.cmd_add("new.txt")
+
+                self.assertTrue(Path("new.txt").exists())
+                self.assertFalse((repo_root / "new.txt").exists())
+                self.assertIn(str(Path("new.txt").resolve()), coder.abs_fnames)
+            finally:
+                os.chdir(start_cwd)
+
     def test_cmd_add_drop_directory(self):
         # Initialize the Commands and InputOutput objects
         io = InputOutput(pretty=False, fancy_input=False, yes=False)

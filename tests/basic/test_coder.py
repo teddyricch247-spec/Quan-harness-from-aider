@@ -51,6 +51,68 @@ class TestCoder(unittest.TestCase):
 
             self.assertFalse(coder.need_commit_before_edits)
 
+    def test_allowed_to_edit_subtree_only_creates_new_file_in_cwd(self):
+        with GitTemporaryDirectory():
+            repo_root = Path.cwd()
+            subdir = repo_root / "subdir"
+            subdir.mkdir()
+            start_cwd = Path.cwd()
+            os.chdir(subdir)
+            try:
+                io = InputOutput(yes=True)
+                repo = GitRepo(io, None, None, subtree_only=True)
+                coder = Coder.create(self.GPT35, None, io, repo=repo)
+
+                self.assertEqual(coder.abs_root_path("new.txt"), str(repo_root / "new.txt"))
+
+                self.assertTrue(coder.allowed_to_edit("new.txt"))
+
+                self.assertTrue(Path("new.txt").exists())
+                self.assertFalse((repo_root / "new.txt").exists())
+                self.assertIn(str(Path("new.txt").resolve()), coder.abs_fnames)
+            finally:
+                os.chdir(start_cwd)
+
+    def test_allowed_to_edit_without_subtree_only_keeps_repo_root_for_new_files(self):
+        with GitTemporaryDirectory():
+            repo_root = Path.cwd()
+            subdir = repo_root / "subdir"
+            subdir.mkdir()
+            start_cwd = Path.cwd()
+            os.chdir(subdir)
+            try:
+                io = InputOutput(yes=True)
+                repo = GitRepo(io, None, None, subtree_only=False)
+                coder = Coder.create(self.GPT35, None, io, repo=repo)
+
+                self.assertTrue(coder.allowed_to_edit("new.txt"))
+
+                self.assertTrue((repo_root / "new.txt").exists())
+                self.assertFalse((subdir / "new.txt").exists())
+                self.assertIn(str((repo_root / "new.txt").resolve()), coder.abs_fnames)
+            finally:
+                os.chdir(start_cwd)
+
+    def test_allowed_to_edit_subtree_only_keeps_repo_relative_subtree_paths(self):
+        with GitTemporaryDirectory():
+            repo_root = Path.cwd()
+            subdir = repo_root / "subdir"
+            subdir.mkdir()
+            start_cwd = Path.cwd()
+            os.chdir(subdir)
+            try:
+                io = InputOutput(yes=True)
+                repo = GitRepo(io, None, None, subtree_only=True)
+                coder = Coder.create(self.GPT35, None, io, repo=repo)
+
+                self.assertTrue(coder.allowed_to_edit("subdir/new.txt"))
+
+                self.assertTrue((repo_root / "subdir" / "new.txt").exists())
+                self.assertFalse((repo_root / "subdir" / "subdir" / "new.txt").exists())
+                self.assertIn(str((repo_root / "subdir" / "new.txt").resolve()), coder.abs_fnames)
+            finally:
+                os.chdir(start_cwd)
+
     def test_allowed_to_edit_no(self):
         with GitTemporaryDirectory():
             repo = git.Repo()

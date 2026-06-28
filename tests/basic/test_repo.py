@@ -620,6 +620,43 @@ class TestRepo(unittest.TestCase):
             self.assertNotIn(str(root_file), tracked_files)
             self.assertNotIn(str(another_subdir_file), tracked_files)
 
+    def test_subtree_only_new_file_path_resolution(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+
+            subdir_file = Path("subdir/subdir_file.txt")
+            subdir_file.parent.mkdir()
+            subdir_file.touch()
+
+            raw_repo.git.add(str(subdir_file))
+            raw_repo.git.commit("-m", "Initial commit")
+
+            repo_root = Path.cwd()
+            start_cwd = Path.cwd()
+            os.chdir(subdir_file.parent)
+            try:
+                subtree_repo = GitRepo(InputOutput(), None, None, subtree_only=True)
+                self.assertEqual(
+                    subtree_repo.abs_new_file_path("new.txt"),
+                    str(repo_root / "subdir" / "new.txt"),
+                )
+                self.assertEqual(
+                    subtree_repo.abs_new_file_path("subdir/new.txt"),
+                    str(repo_root / "subdir" / "new.txt"),
+                )
+                self.assertNotEqual(
+                    subtree_repo.abs_new_file_path("subdir/new.txt"),
+                    str(repo_root / "subdir" / "subdir" / "new.txt"),
+                )
+
+                full_repo = GitRepo(InputOutput(), None, None, subtree_only=False)
+                self.assertEqual(
+                    full_repo.abs_new_file_path("new.txt"),
+                    str(repo_root / "new.txt"),
+                )
+            finally:
+                os.chdir(start_cwd)
+
     @patch("aider.models.Model.simple_send_with_retries")
     def test_noop_commit(self, mock_send):
         mock_send.return_value = '"a good commit message"'
