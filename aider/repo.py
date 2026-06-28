@@ -578,6 +578,26 @@ class GitRepo:
         res = Path(self.root) / path
         return utils.safe_abs_path(res)
 
+    def abs_new_file_path(self, path):
+        path = Path(path)
+        if path.is_absolute() or not self.subtree_only:
+            return utils.safe_abs_path(path) if path.is_absolute() else self.abs_root_path(path)
+
+        try:
+            cwd_path = Path.cwd().resolve()
+            root_path = Path(self.root).resolve()
+            cwd_relative = cwd_path.relative_to(root_path)
+        except ValueError:
+            return self.abs_root_path(path)
+
+        if (
+            cwd_relative != Path(".")
+            and path.parts[: len(cwd_relative.parts)] == cwd_relative.parts
+        ):
+            return self.abs_root_path(path)
+
+        return utils.safe_abs_path(cwd_path / path)
+
     def get_dirty_files(self):
         """
         Returns a list of all files which are dirty (not committed), either staged or in the working

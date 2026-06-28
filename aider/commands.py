@@ -808,11 +808,11 @@ class Commands:
             else:
                 fname = Path(self.coder.root) / word
 
-            if self.coder.repo and self.coder.repo.ignored_file(fname):
-                self.io.tool_warning(f"Skipping {fname} due to aiderignore or --subtree-only.")
-                continue
-
             if fname.exists():
+                if self.coder.repo and self.coder.repo.ignored_file(fname):
+                    self.io.tool_warning(f"Skipping {fname} due to aiderignore or --subtree-only.")
+                    continue
+
                 if fname.is_file():
                     all_matched_files.add(str(fname))
                     continue
@@ -835,13 +835,22 @@ class Commands:
                 self.io.tool_output(f"You can add to git with: /git add {fname}")
                 continue
 
-            if self.io.confirm_ask(f"No files matched '{word}'. Do you want to create {fname}?"):
+            create_path = Path(self.coder.abs_new_file_path(word))
+            if self.coder.repo and self.coder.repo.ignored_file(create_path):
+                self.io.tool_warning(
+                    f"Skipping {create_path} due to aiderignore or --subtree-only."
+                )
+                continue
+
+            if self.io.confirm_ask(
+                f"No files matched '{word}'. Do you want to create {create_path}?"
+            ):
                 try:
-                    fname.parent.mkdir(parents=True, exist_ok=True)
-                    fname.touch()
-                    all_matched_files.add(str(fname))
+                    create_path.parent.mkdir(parents=True, exist_ok=True)
+                    create_path.touch()
+                    all_matched_files.add(str(create_path))
                 except OSError as e:
-                    self.io.tool_error(f"Error creating file {fname}: {e}")
+                    self.io.tool_error(f"Error creating file {create_path}: {e}")
 
         for matched_file in sorted(all_matched_files):
             abs_file_path = self.coder.abs_root_path(matched_file)
