@@ -293,6 +293,47 @@ class TestCommands(TestCase):
         self.assertNotIn(str(Path("test2.py").resolve()), coder.abs_fnames)
         self.assertEqual(len(coder.abs_fnames), initial_count - 1)
 
+    def test_cmd_drop_exact_path_does_not_drop_suffix_match(self):
+        io = InputOutput(pretty=False, fancy_input=False, yes=True)
+        from aider.coders import Coder
+
+        coder = Coder.create(self.GPT35, None, io)
+        commands = Commands(io, coder)
+
+        exact_file = Path("api/chat/route.ts")
+        suffix_file = Path("app/api/chat/route.ts")
+        exact_file.parent.mkdir(parents=True, exist_ok=True)
+        suffix_file.parent.mkdir(parents=True, exist_ok=True)
+        exact_file.write_text("exact")
+        suffix_file.write_text("suffix")
+
+        commands.cmd_add(f"{exact_file} {suffix_file}")
+        self.assertEqual(len(coder.abs_fnames), 2)
+
+        commands.cmd_drop("api/chat/route.ts")
+        self.assertNotIn(str(exact_file.resolve()), coder.abs_fnames)
+        self.assertIn(str(suffix_file.resolve()), coder.abs_fnames)
+
+    def test_cmd_drop_glob_keeps_multi_match_behavior(self):
+        io = InputOutput(pretty=False, fancy_input=False, yes=True)
+        from aider.coders import Coder
+
+        coder = Coder.create(self.GPT35, None, io)
+        commands = Commands(io, coder)
+
+        exact_file = Path("api/chat/route.ts")
+        suffix_file = Path("app/api/chat/route.ts")
+        exact_file.parent.mkdir(parents=True, exist_ok=True)
+        suffix_file.parent.mkdir(parents=True, exist_ok=True)
+        exact_file.write_text("exact")
+        suffix_file.write_text("suffix")
+
+        commands.cmd_add(f"{exact_file} {suffix_file}")
+        self.assertEqual(len(coder.abs_fnames), 2)
+
+        commands.cmd_drop("**/route.ts")
+        self.assertEqual(len(coder.abs_fnames), 0)
+
     def test_cmd_drop_without_glob(self):
         # Initialize the Commands and InputOutput objects
         io = InputOutput(pretty=False, fancy_input=False, yes=True)
@@ -324,6 +365,29 @@ class TestCommands(TestCase):
         self.assertNotIn(str(Path("file2.txt").resolve()), coder.abs_fnames)
         self.assertNotIn(str(Path("file3.py").resolve()), coder.abs_fnames)
         self.assertEqual(len(coder.abs_fnames), 0)
+
+    def test_cmd_drop_read_only_exact_path_does_not_drop_suffix_match(self):
+        io = InputOutput(pretty=False, fancy_input=False, yes=True)
+        from aider.coders import Coder
+
+        coder = Coder.create(self.GPT35, None, io)
+        commands = Commands(io, coder)
+
+        exact_file = Path("api/chat/route.ts")
+        suffix_file = Path("app/api/chat/route.ts")
+        exact_file.parent.mkdir(parents=True, exist_ok=True)
+        suffix_file.parent.mkdir(parents=True, exist_ok=True)
+        exact_file.write_text("exact")
+        suffix_file.write_text("suffix")
+
+        commands.cmd_read_only(str(exact_file))
+        commands.cmd_read_only(str(suffix_file))
+        self.assertEqual(len(coder.abs_read_only_fnames), 2)
+
+        commands.cmd_drop("api/chat/route.ts")
+        self.assertEqual(len(coder.abs_read_only_fnames), 1)
+        self.assertNotIn(str(exact_file.resolve()), coder.abs_read_only_fnames)
+        self.assertIn(str(suffix_file.resolve()), coder.abs_read_only_fnames)
 
     def test_cmd_add_bad_encoding(self):
         # Initialize the Commands and InputOutput objects

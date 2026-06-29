@@ -909,6 +909,33 @@ class Commands:
         all_files = [self.quote_fname(fn) for fn in all_files]
         return all_files
 
+    @staticmethod
+    def _normalize_drop_path(path):
+        return os.path.normcase(os.path.normpath(path)).replace("\\", "/")
+
+    def _paths_match_for_drop(self, needle, haystack):
+        if self._normalize_drop_path(needle) == self._normalize_drop_path(haystack):
+            return True
+
+        normalized_haystack = self._normalize_drop_path(str(Path(haystack).resolve(strict=False)))
+        normalized_abs_needle = self._normalize_drop_path(
+            str(Path(self.coder.abs_root_path(needle)).resolve(strict=False))
+        )
+        if normalized_abs_needle == normalized_haystack:
+            return True
+        if "/" not in needle and "\\" not in needle:
+            normalized_parent_needle = self._normalize_drop_path(
+                str((Path(self.coder.root).parent / needle).resolve(strict=False))
+            )
+            if normalized_parent_needle == normalized_haystack:
+                return True
+
+        try:
+            abs_needle = self.coder.abs_root_path(needle)
+            return os.path.samefile(abs_needle, haystack)
+        except (FileNotFoundError, OSError):
+            return False
+
     def cmd_drop(self, args=""):
         "Remove files from the chat session to free up context space"
 
@@ -926,34 +953,26 @@ class Commands:
         for word in filenames:
             # Expand tilde in the path
             expanded_word = os.path.expanduser(word)
-
-            # Handle read-only files with substring matching and samefile check
-            read_only_matched = []
-            for f in self.coder.abs_read_only_fnames:
-                if expanded_word in f:
-                    read_only_matched.append(f)
-                    continue
-
-                # Try samefile comparison for relative paths
-                try:
-                    abs_word = os.path.abspath(expanded_word)
-                    if os.path.samefile(abs_word, f):
-                        read_only_matched.append(f)
-                except (FileNotFoundError, OSError):
-                    continue
+            if any(c in expanded_word for c in "*?[]"):
+                read_only_matched = [
+                    f for f in self.coder.abs_read_only_fnames if expanded_word in f
+                ]
+                matched_files = self.glob_filtered_to_repo(expanded_word)
+            else:
+                read_only_matched = [
+                    f
+                    for f in self.coder.abs_read_only_fnames
+                    if self._paths_match_for_drop(expanded_word, f)
+                ]
+                matched_files = [
+                    self.coder.get_rel_fname(f)
+                    for f in self.coder.abs_fnames
+                    if self._paths_match_for_drop(expanded_word, f)
+                ]
 
             for matched_file in read_only_matched:
                 self.coder.abs_read_only_fnames.remove(matched_file)
                 self.io.tool_output(f"Removed read-only file {matched_file} from the chat")
-
-            # For editable files, use glob if word contains glob chars, otherwise use substring
-            if any(c in expanded_word for c in "*?[]"):
-                matched_files = self.glob_filtered_to_repo(expanded_word)
-            else:
-                # Use substring matching like we do for read-only files
-                matched_files = [
-                    self.coder.get_rel_fname(f) for f in self.coder.abs_fnames if expanded_word in f
-                ]
 
             if not matched_files:
                 matched_files.append(expanded_word)
