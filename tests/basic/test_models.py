@@ -260,7 +260,11 @@ class TestModels(unittest.TestCase):
         self, mock_validate_environment, mock_get_model_info
     ):
         """Test that metadata-backed custom_openai models bypass litellm validation."""
-        mock_get_model_info.return_value = {"litellm_provider": "custom_openai"}
+        mock_get_model_info.return_value = {"litellm_provider": "custom_openai", "mode": "chat"}
+        mock_validate_environment.return_value = {
+            "keys_in_environment": False,
+            "missing_keys": ["OPENAI_API_KEY"],
+        }
 
         model = Model("custom_openai/my-openai-model")
 
@@ -274,7 +278,10 @@ class TestModels(unittest.TestCase):
         self, mock_validate_environment, mock_get_model_info
     ):
         """Test that only the exact custom_openai provider bypasses litellm validation."""
-        mock_get_model_info.return_value = {"litellm_provider": "custom_openai_plus"}
+        mock_get_model_info.return_value = {
+            "litellm_provider": "custom_openai_plus",
+            "mode": "chat",
+        }
         mock_validate_environment.return_value = {
             "keys_in_environment": False,
             "missing_keys": ["SOME_KEY"],
