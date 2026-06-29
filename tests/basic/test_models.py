@@ -493,6 +493,16 @@ class TestModels(unittest.TestCase):
         model.use_temperature = 0.7
         self.assertEqual(model.use_temperature, 0.7)
 
+    @patch(
+        "aider.models.Model.validate_environment",
+        return_value={"keys_in_environment": True, "missing_keys": []},
+    )
+    def test_codex_mini_sets_use_temperature_false(self, _mock_validate_environment):
+        for model_name in ("codex-mini", "openai/codex-mini", "openrouter/openai/codex-mini"):
+            with self.subTest(model_name=model_name):
+                model = Model(model_name)
+                self.assertFalse(model.use_temperature)
+
     @patch("aider.models.litellm.completion")
     def test_request_timeout_default(self, mock_completion):
         # Test default timeout is used when not specified in extra_params
@@ -506,6 +516,22 @@ class TestModels(unittest.TestCase):
             temperature=0,
             timeout=600,  # Default timeout
         )
+
+    @patch("aider.models.litellm.completion", create=True)
+    @patch(
+        "aider.models.Model.validate_environment",
+        return_value={"keys_in_environment": True, "missing_keys": []},
+    )
+    def test_codex_mini_send_completion_omits_temperature(
+        self, _mock_validate_environment, mock_completion
+    ):
+        messages = [{"role": "user", "content": "Hello"}]
+        for model_name in ("codex-mini", "openai/codex-mini", "openrouter/openai/codex-mini"):
+            with self.subTest(model_name=model_name):
+                model = Model(model_name)
+                model.send_completion(messages, functions=None, stream=False)
+                self.assertNotIn("temperature", mock_completion.call_args.kwargs)
+                mock_completion.reset_mock()
 
     @patch("aider.models.litellm.completion")
     def test_request_timeout_from_extra_params(self, mock_completion):
