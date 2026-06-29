@@ -435,6 +435,10 @@ class Model(ModelSettings):
                 self.accepts_settings.append("reasoning_effort")
 
     def apply_generic_model_settings(self, model):
+        if "codex-mini" in model:
+            self.use_temperature = False
+            return  # <--
+
         if "/o3-mini" in model:
             self.edit_format = "diff"
             self.use_repo_map = True
