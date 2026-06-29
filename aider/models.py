@@ -745,6 +745,10 @@ class Model(ModelSettings):
         if res:
             return res
 
+        provider = self.info.get("litellm_provider", "").lower()
+        if provider == "custom_openai":
+            return dict(keys_in_environment=True, missing_keys=[])
+
         # https://github.com/BerriAI/litellm/issues/3190
 
         model = self.name
@@ -769,7 +773,6 @@ class Model(ModelSettings):
         if res["missing_keys"]:
             return res
 
-        provider = self.info.get("litellm_provider", "").lower()
         if provider == "cohere_chat":
             return validate_variables(["COHERE_API_KEY"])
         if provider == "gemini":

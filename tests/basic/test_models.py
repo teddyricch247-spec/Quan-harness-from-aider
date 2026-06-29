@@ -254,6 +254,38 @@ class TestModels(unittest.TestCase):
         # Verify check_pip_install_extra was not called
         mock_check_pip.assert_not_called()
 
+    @patch("aider.models.Model.get_model_info")
+    @patch("aider.models.litellm.validate_environment")
+    def test_custom_openai_metadata_bypasses_litellm_validation(
+        self, mock_validate_environment, mock_get_model_info
+    ):
+        """Test that metadata-backed custom_openai models bypass litellm validation."""
+        mock_get_model_info.return_value = {"litellm_provider": "custom_openai"}
+
+        model = Model("custom_openai/my-openai-model")
+
+        self.assertTrue(model.keys_in_environment)
+        self.assertEqual(model.missing_keys, [])
+        mock_validate_environment.assert_not_called()
+
+    @patch("aider.models.Model.get_model_info")
+    @patch("aider.models.litellm.validate_environment")
+    def test_non_custom_metadata_still_uses_litellm_validation(
+        self, mock_validate_environment, mock_get_model_info
+    ):
+        """Test that only the exact custom_openai provider bypasses litellm validation."""
+        mock_get_model_info.return_value = {"litellm_provider": "custom_openai_plus"}
+        mock_validate_environment.return_value = {
+            "keys_in_environment": False,
+            "missing_keys": ["SOME_KEY"],
+        }
+
+        model = Model("custom_openai/my-openai-model")
+
+        self.assertFalse(model.keys_in_environment)
+        self.assertEqual(model.missing_keys, ["SOME_KEY"])
+        mock_validate_environment.assert_called_once_with("custom_openai/my-openai-model")
+
     def test_get_repo_map_tokens(self):
         # Test default case (no max_input_tokens in info)
         model = Model("gpt-4")
