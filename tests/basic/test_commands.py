@@ -310,7 +310,7 @@ class TestCommands(TestCase):
         commands.cmd_add(f"{exact_file} {suffix_file}")
         self.assertEqual(len(coder.abs_fnames), 2)
 
-        commands.cmd_drop("api/chat/route.ts")
+        commands.cmd_drop(r"api\chat\route.ts")
         self.assertNotIn(str(exact_file.resolve()), coder.abs_fnames)
         self.assertIn(str(suffix_file.resolve()), coder.abs_fnames)
 
@@ -384,7 +384,7 @@ class TestCommands(TestCase):
         commands.cmd_read_only(str(suffix_file))
         self.assertEqual(len(coder.abs_read_only_fnames), 2)
 
-        commands.cmd_drop("api/chat/route.ts")
+        commands.cmd_drop(r"api\chat\route.ts")
         self.assertEqual(len(coder.abs_read_only_fnames), 1)
         self.assertNotIn(str(exact_file.resolve()), coder.abs_read_only_fnames)
         self.assertIn(str(suffix_file.resolve()), coder.abs_read_only_fnames)
