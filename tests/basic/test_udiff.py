@@ -114,6 +114,13 @@ These changes will add the `--check-update` option to the command-line interface
         self.assertEqual(len(edits), 2)
         self.assertEqual(len(edits[0][1]), 3)
 
+    def test_find_diffs_plus_header_without_minus_does_not_crash(self):
+        # A malformed diff whose "+++ " line isn't preceded by a "--- " line used
+        # to raise IndexError (hunk[-2] on a one-element hunk). It must parse
+        # without crashing so the malformed-edit retry path can handle it.
+        content = "\n```diff\n+++ onlyplus\n@@ ... @@\n-a\n+b\n```\n"
+        find_diffs(content)  # should not raise
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -369,8 +369,8 @@ def process_fenced_block(lines, start_line_num):
         if len(line) < 2:
             continue
 
-        if line.startswith("+++ ") and hunk[-2].startswith("--- "):
-            if hunk[-3] == "\n":
+        if line.startswith("+++ ") and len(hunk) >= 2 and hunk[-2].startswith("--- "):
+            if len(hunk) >= 3 and hunk[-3] == "\n":
                 hunk = hunk[:-3]
             else:
                 hunk = hunk[:-2]
