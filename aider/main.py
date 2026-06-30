@@ -57,6 +57,29 @@ def check_config_files_for_yes(config_files):
     return found
 
 
+def get_repo_config_cmd_files(config_files):
+    """Return a set of config file paths (outside user home) that contain test-cmd or lint-cmd."""
+    dangerous = set()
+    home_conf = Path.home() / ".aider.conf.yml"
+    for config_file in config_files:
+        path = Path(config_file).resolve()
+        if path == home_conf.resolve():
+            continue
+        if path.exists():
+            try:
+                with open(config_file, "r") as f:
+                    for line in f:
+                        stripped = line.strip()
+                        if any(
+                            stripped.startswith(k)
+                            for k in ("test-cmd:", "lint-cmd:", "test:", "lint:")
+                        ):
+                            dangerous.add(config_file)
+            except Exception:
+                pass
+    return dangerous
+
+
 def get_git_root():
     """Try and guess the git repo, since the conf.yml can be at the repo root"""
     try:
@@ -1049,6 +1072,22 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         utils.show_messages(messages)
         analytics.event("exit", reason="Showed prompts")
         return
+
+    if args.lint or args.test:
+        cmd_files = get_repo_config_cmd_files(default_config_files)
+        if cmd_files and not args.yes_always:
+            io.tool_warning(
+                "The following repository config files contain command execution settings"
+                " (test-cmd / lint-cmd):"
+            )
+            for f in cmd_files:
+                io.tool_output(f"  {f}")
+            io.tool_output(
+                "Only proceed if you trust the repository's configuration. "
+                "Pass --yes-always to skip this check."
+            )
+            if not io.confirm_ask("Execute commands from repo config?", default="n"):
+                return 0
 
     if args.lint:
         coder.commands.cmd_lint(fnames=fnames)
