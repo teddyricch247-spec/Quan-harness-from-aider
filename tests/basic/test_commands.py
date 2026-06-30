@@ -1486,6 +1486,23 @@ class TestCommands(TestCase):
         finally:
             os.unlink(external_file_path)
 
+    def test_cmd_read_only_handles_unsupported_glob_pattern(self):
+        # Path.glob() raises NotImplementedError for non-relative patterns (e.g. a
+        # Windows drive-relative path). cmd_read_only must report it, not crash.
+        with GitTemporaryDirectory():
+            io = InputOutput(pretty=False, fancy_input=False, yes=False)
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            def boom(self, *args, **kwargs):
+                raise NotImplementedError("Non-relative patterns are unsupported")
+
+            with mock.patch.object(Path, "glob", boom):
+                # Must not raise — a pattern glob can't handle is reported, not fatal.
+                commands.cmd_read_only("some/relative/pattern*")
+
+            self.assertEqual(len(coder.abs_read_only_fnames), 0)
+
     def test_cmd_drop_read_only_with_relative_path(self):
         with ChdirTemporaryDirectory() as repo_dir:
             test_file = Path("test_file.txt")

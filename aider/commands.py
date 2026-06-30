@@ -1353,12 +1353,20 @@ class Commands:
                 matches = [path_obj]
             else:
                 # If literal path doesn't exist, try globbing
-                if is_abs:
-                    # For absolute paths, glob it
-                    matches = [Path(p) for p in glob.glob(expanded_pattern)]
-                else:
-                    # For relative paths and globs, use glob from the root directory
-                    matches = list(Path(self.coder.root).glob(expanded_pattern))
+                try:
+                    if is_abs:
+                        # For absolute paths, glob it
+                        matches = [Path(p) for p in glob.glob(expanded_pattern)]
+                    else:
+                        # For relative paths and globs, use glob from the root directory
+                        matches = list(Path(self.coder.root).glob(expanded_pattern))
+                except (OSError, ValueError, NotImplementedError) as err:
+                    # Path.glob() raises NotImplementedError for non-relative
+                    # patterns (e.g. a Windows drive-relative path), and globbing
+                    # can otherwise raise OSError/ValueError. Report it instead of
+                    # letting the exception crash aider.
+                    self.io.tool_error(f"Unable to match files for {pattern!r}: {err}")
+                    matches = []
 
             if not matches:
                 self.io.tool_error(f"No matches found for: {pattern}")
