@@ -1,6 +1,7 @@
 import glob
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -968,16 +969,15 @@ class Commands:
         "Run a git command (output excluded from chat)"
         combined_output = None
         try:
-            args = "git " + args
             env = dict(subprocess.os.environ)
             env["GIT_EDITOR"] = "true"
             result = subprocess.run(
-                args,
+                (["git"] + shlex.split(args)) if args else ["git"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 env=env,
-                shell=True,
+                shell=False,
                 encoding=self.io.encoding,
                 errors="replace",
             )
