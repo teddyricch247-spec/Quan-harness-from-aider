@@ -866,6 +866,16 @@ def get_parser(default_config_files, git_root):
     # Add deprecated model shortcut arguments
     add_deprecated_model_args(parser, group)
 
+    # Register AIDER_CHAT_MODE env var for --chat-mode alias.
+    # configargparse auto_env_var_prefix only derives from the first option
+    # string (--edit-format -> AIDER_EDIT_FORMAT), missing the --chat-mode alias.
+    # Support both env var names for backward compatibility.
+    for action in parser._actions:
+        if hasattr(action, "option_strings") and "--edit-format" in action.option_strings:
+            action.env_var = "AIDER_CHAT_MODE"
+            if "AIDER_EDIT_FORMAT" in os.environ and "AIDER_CHAT_MODE" not in os.environ:
+                os.environ["AIDER_CHAT_MODE"] = os.environ["AIDER_EDIT_FORMAT"]
+
     return parser
 
 
