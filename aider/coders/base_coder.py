@@ -2294,6 +2294,8 @@ class Coder:
         return res
 
     def apply_updates(self):
+        if self.edit_format == "ask":
+            return set()
         edited = set()
         try:
             edits = self.get_edits()
