@@ -179,8 +179,15 @@ def lint_python_compile(fname, code):
         compile(code, fname, "exec")  # USE TRACEBACK BELOW HERE
         return
     except Exception as err:
-        end_lineno = getattr(err, "end_lineno", err.lineno)
-        line_numbers = list(range(err.lineno - 1, end_lineno))
+        # Not every compile error carries usable line info: a source string
+        # with null bytes raises ValueError (no lineno at all), and some
+        # SyntaxErrors have lineno=None. Guard both instead of crashing.
+        lineno = getattr(err, "lineno", None)
+        if lineno is None:
+            line_numbers = []
+        else:
+            end_lineno = getattr(err, "end_lineno", None) or lineno
+            line_numbers = list(range(lineno - 1, end_lineno))
 
         tb_lines = traceback.format_exception(type(err), err, err.__traceback__)
         last_file_i = 0
