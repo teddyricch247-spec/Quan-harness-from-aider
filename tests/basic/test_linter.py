@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from aider.dump import dump  # noqa
-from aider.linter import Linter
+from aider.linter import Linter, LintResult, lint_python_compile
 
 
 class TestLinter(unittest.TestCase):
@@ -78,6 +78,33 @@ class TestLinter(unittest.TestCase):
             # The result should contain the error message
             self.assertIsNotNone(result)
             self.assertIn("Error message", result.text)
+
+
+class TestLintPythonCompile(unittest.TestCase):
+    def test_null_bytes_do_not_crash(self):
+        # compile() raises ValueError (no `lineno` attribute) on null bytes.
+        # This used to crash linting entirely (issue #3358).
+        result = lint_python_compile("test.py", "x = 1\0y = 2")
+        self.assertIsInstance(result, LintResult)
+        self.assertEqual(result.lines, [])
+        self.assertTrue(result.text)
+
+    def test_syntax_error_with_none_lineno_does_not_crash(self):
+        # Some compile errors carry lineno=None; `err.lineno - 1` used to
+        # raise TypeError (issue #3358).
+        with patch("aider.linter.compile", side_effect=SyntaxError("bad")):
+            result = lint_python_compile("test.py", "whatever")
+        self.assertIsInstance(result, LintResult)
+        self.assertEqual(result.lines, [])
+
+    def test_normal_syntax_error_still_reports_line(self):
+        # Regression guard: the happy path must keep reporting the error line.
+        result = lint_python_compile("test.py", "def f(:\n    pass\n")
+        self.assertIsInstance(result, LintResult)
+        self.assertIn(0, result.lines)
+
+    def test_valid_code_returns_none(self):
+        self.assertIsNone(lint_python_compile("test.py", "x = 1\n"))
 
 
 if __name__ == "__main__":
