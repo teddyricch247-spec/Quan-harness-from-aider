@@ -71,6 +71,34 @@ class TestInputOutput(unittest.TestCase):
             self.assertFalse(io.pretty)
             self.assertIsNone(io.prompt_session)
 
+    def test_read_text_handles_memory_error(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value.read.side_effect = MemoryError
+
+        with (
+            patch("aider.io.open", return_value=mock_file),
+            patch.object(io, "tool_error") as mock_tool_error,
+        ):
+            result = io.read_text("huge.txt")
+
+        self.assertIsNone(result)
+        mock_tool_error.assert_called_once_with("huge.txt: file too large to read into memory")
+
+    def test_read_text_handles_memory_error_silent(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value.read.side_effect = MemoryError
+
+        with (
+            patch("aider.io.open", return_value=mock_file),
+            patch.object(io, "tool_error") as mock_tool_error,
+        ):
+            result = io.read_text("huge.txt", silent=True)
+
+        self.assertIsNone(result)
+        mock_tool_error.assert_not_called()
+
     def test_autocompleter_get_command_completions(self):
         # Step 3: Mock the commands object
         commands = MagicMock()

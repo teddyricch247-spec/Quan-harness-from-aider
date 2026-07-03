@@ -469,6 +469,10 @@ class InputOutput:
             if not silent:
                 self.tool_error(f"{filename}: unable to read: {err}")
             return
+        except MemoryError:
+            if not silent:
+                self.tool_error(f"{filename}: file too large to read into memory")
+            return
         except UnicodeError as e:
             if not silent:
                 self.tool_error(f"{filename}: {e}")
@@ -538,7 +542,7 @@ class InputOutput:
         show = ""
         if rel_fnames:
             rel_read_only_fnames = [
-                get_rel_fname(fname, root) for fname in (abs_read_only_fnames or [])
+                get_rel_fname(fname, root) for fname in abs_read_only_fnames or []
             ]
             show = self.format_files_for_input(rel_fnames, rel_read_only_fnames)
 
