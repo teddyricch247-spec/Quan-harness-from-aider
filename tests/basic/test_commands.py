@@ -506,6 +506,40 @@ class TestCommands(TestCase):
 
             self.assertEqual(len(coder.abs_fnames), 0)
 
+    def test_cmd_add_abs_path_in_sibling_dir_with_prefix(self):
+        """An absolute path inside a sibling directory whose name starts with
+        the repo root's name must be rejected.
+
+        Regression: the within-root guard used str.startswith(), so a path
+        like /tmp/x/repoXYZ/secret.env was wrongly accepted when the repo
+        root was /tmp/x/repo (no trailing path separator), leaking an
+        out-of-tree file into the chat / to the LLM.
+        See https://github.com/Aider-AI/aider/issues/178
+        """
+        with ChdirTemporaryDirectory() as tmp_dname:
+            root = Path("repo")
+            root.mkdir()
+            os.chdir(str(root))
+
+            make_repo()
+
+            io = InputOutput(pretty=False, fancy_input=False, yes=False)
+            from aider.coders import Coder
+
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            # Sibling dir whose name shares the root's prefix, holding a real file.
+            sibling = Path(tmp_dname) / "repoXYZ"
+            sibling.mkdir()
+            outside_file = sibling / "secret.env"
+            outside_file.touch()
+
+            commands.cmd_add(str(outside_file.resolve()))
+
+            self.assertNotIn(str(outside_file.resolve()), coder.abs_fnames)
+            self.assertEqual(len(coder.abs_fnames), 0)
+
     def test_cmd_add_filename_with_special_chars(self):
         with ChdirTemporaryDirectory():
             io = InputOutput(pretty=False, fancy_input=False, yes=False)
