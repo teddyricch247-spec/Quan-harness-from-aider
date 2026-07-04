@@ -671,10 +671,10 @@ class Commands:
             self.io.tool_error("Unable to get current commit. The repository might be empty.")
             return
 
-        if len(self.coder.commit_before_message) < 2:
+        if not self.coder.commit_before_message:
             commit_before_message = current_head + "^"
         else:
-            commit_before_message = self.coder.commit_before_message[-2]
+            commit_before_message = self.coder.commit_before_message[-1]
 
         if not commit_before_message or commit_before_message == current_head:
             self.io.tool_warning("No changes to display since the last message.")

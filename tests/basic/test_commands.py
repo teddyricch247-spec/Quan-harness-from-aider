@@ -1714,6 +1714,51 @@ class TestCommands(TestCase):
                 self.assertIn("-Further modified content", diff_output)
                 self.assertIn("+Final modified content", diff_output)
 
+    def test_cmd_diff_since_last_message_not_previous(self):
+        """/diff must diff from the head recorded before the MOST RECENT message
+        (commit_before_message[-1]), not the one before it ([-2]).
+
+        Regression: raw_cmd_diff used commit_before_message[-2], so once two
+        messages had been processed in a session, /diff (and the auto-shown
+        post-commit diff) displayed changes accumulated since the *previous*
+        message rather than the current one. show_undo_hint already uses [-1].
+        """
+        with GitTemporaryDirectory() as repo_dir:
+            repo = git.Repo(repo_dir)
+            io = InputOutput(pretty=False, fancy_input=False, yes=True)
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            fname = "f.txt"
+            fpath = Path(repo_dir) / fname
+
+            def commit(content):
+                fpath.write_text(content)
+                repo.git.add(fname)
+                repo.git.commit("-m", content)
+
+            commit("v0\n")  # C0
+            c0 = repo.head.commit.hexsha
+            commit("v1\n")  # C1
+            c1 = repo.head.commit.hexsha
+            commit("v2\n")  # C2  <- HEAD
+
+            # Two messages processed in this session; the head recorded before
+            # the most recent message is C1.
+            coder.commit_before_message = [c0, c1]
+
+            with mock.patch("builtins.print") as mock_print:
+                commands.cmd_diff("")
+
+            # cmd_diff prints the unified diff via builtin print (the
+            # "Diff since ..." header goes through the IO console instead).
+            diff_output = mock_print.call_args[0][0]
+
+            # Base must be C1 ([-1]) -> diff is v1..v2; not C0 ([-2]) -> v0..v2.
+            self.assertIn("-v1", diff_output)
+            self.assertIn("+v2", diff_output)
+            self.assertNotIn("-v0", diff_output)
+
     def test_cmd_model(self):
         io = InputOutput(pretty=False, fancy_input=False, yes=True)
         coder = Coder.create(self.GPT35, None, io)
