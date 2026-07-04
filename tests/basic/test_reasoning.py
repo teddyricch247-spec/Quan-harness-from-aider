@@ -399,6 +399,27 @@ End"""
         text = "Just regular text"
         self.assertEqual(remove_reasoning_content(text, "think"), text)
 
+    def test_remove_reasoning_content_literal_closing_tag(self):
+        """A literal </think> in the model's answer (e.g. inside code or
+        prose) must not be discarded when the response also contained a real
+        (balanced) reasoning block.
+
+        Regression: the orphan-close heuristic split on the first remaining
+        </think> after stripping balanced blocks, silently dropping the real
+        answer that preceded a literal </think>.
+        """
+        text = "<think>reasoning here</think>Here is code: print('</think>')"
+        expected = "Here is code: print('</think>')"
+        self.assertEqual(remove_reasoning_content(text, "think"), expected)
+
+    def test_remove_reasoning_content_orphan_closing_tag_stripped(self):
+        """When no opening tag is present at all (e.g. a continuation where
+        the opening tag was emitted in a prior chunk), an orphan </think> is
+        still stripped along with the reasoning text that preceded it."""
+        text = "leftover reasoning here</think>actual answer"
+        expected = "actual answer"
+        self.assertEqual(remove_reasoning_content(text, "think"), expected)
+
     def test_send_with_reasoning(self):
         """Test that reasoning content from the 'reasoning' attribute is properly formatted
         and output."""

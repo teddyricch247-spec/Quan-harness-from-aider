@@ -25,14 +25,23 @@ def remove_reasoning_content(res, reasoning_tag):
     if not reasoning_tag:
         return res
 
+    open_tag = f"<{reasoning_tag}>"
+    closing_tag = f"</{reasoning_tag}>"
+    # Whether the response contained an opening tag. Captured before the
+    # balanced-block substitution below removes it.
+    had_open_tag = open_tag in res
+
     # Try to match the complete tag pattern first
     pattern = f"<{reasoning_tag}>.*?</{reasoning_tag}>"
     res = re.sub(pattern, "", res, flags=re.DOTALL).strip()
 
-    # If closing tag exists but opening tag might be missing, remove everything before closing
-    # tag
-    closing_tag = f"</{reasoning_tag}>"
-    if closing_tag in res:
+    # Only treat a remaining closing tag as an orphan reasoning close when no
+    # opening tag was present at all (e.g. a continuation whose opening tag
+    # was emitted in a prior chunk); in that case the text before it is
+    # reasoning and is dropped. If there was an opening tag, any closing tag
+    # still left after the substitution above is a *literal* occurrence in
+    # the model's answer (e.g. inside code or prose) and must be preserved.
+    if not had_open_tag and closing_tag in res:
         # Split on the closing tag and keep everything after it
         parts = res.split(closing_tag, 1)
         res = parts[1].strip() if len(parts) > 1 else res
