@@ -343,6 +343,10 @@ transformers==5.3.0
     # via
     #   -c requirements/common-constraints.txt
     #   sentence-transformers
+triton==3.6.0
+    # via
+    #   -c requirements/common-constraints.txt
+    #   torch
 typer==0.24.1
     # via
     #   -c requirements/common-constraints.txt
@@ -351,8 +355,6 @@ typer==0.24.1
 typing-extensions==4.15.0
     # via
     #   -c requirements/common-constraints.txt
-    #   aiosignal
-    #   anyio
     #   huggingface-hub
     #   llama-index-core
     #   llama-index-workflows

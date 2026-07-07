@@ -206,10 +206,8 @@ idna==3.11
     #   yarl
 imgcat==0.6.0
     # via -r requirements/requirements-dev.in
-importlib-metadata==7.2.1
-    # via
-    #   -r requirements/requirements.in
-    #   litellm
+importlib-metadata==8.9.0
+    # via litellm
 importlib-resources==6.5.2
     # via -r requirements/requirements.in
 iniconfig==2.3.0
@@ -238,7 +236,7 @@ jsonschema-specifications==2025.9.1
     # via jsonschema
 kiwisolver==1.5.0
     # via matplotlib
-litellm==1.82.3
+litellm==1.91.0
     # via -r requirements/requirements.in
 llama-index-core==0.14.18
     # via llama-index-embeddings-huggingface
@@ -568,6 +566,8 @@ tree-sitter-language-pack==0.13.0
     # via grep-ast
 tree-sitter-yaml==0.7.2
     # via tree-sitter-language-pack
+triton==3.6.0
+    # via torch
 typer==0.24.1
     # via
     #   -r requirements/requirements-dev.in
@@ -575,9 +575,7 @@ typer==0.24.1
     #   transformers
 typing-extensions==4.15.0
     # via
-    #   aiosignal
     #   altair
-    #   anyio
     #   beautifulsoup4
     #   fastapi
     #   grpcio
@@ -589,10 +587,8 @@ typing-extensions==4.15.0
     #   pydantic
     #   pydantic-core
     #   pyee
-    #   referencing
     #   sentence-transformers
     #   sqlalchemy
-    #   starlette
     #   streamlit
     #   torch
     #   typing-inspect
@@ -613,6 +609,8 @@ uv==0.10.11
     # via -r requirements/requirements-dev.in
 virtualenv==21.2.0
     # via pre-commit
+watchdog==6.0.0
+    # via streamlit
 watchfiles==1.1.1
     # via -r requirements/requirements.in
 wcwidth==0.6.0
