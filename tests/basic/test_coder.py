@@ -1433,6 +1433,38 @@ This command will print 'Hello, World!' to the console."""
                     # (because user rejected the changes)
                     mock_editor.run.assert_not_called()
 
+    def test_compute_costs_from_tokens_deepseek_cache_hit(self):
+        # DeepSeek-style pricing has a separate (cheaper) rate for cache-hit
+        # tokens. The cache-hit tokens should be billed at the cache-hit rate and
+        # the remaining (cache-miss) tokens at the full input rate. Regression
+        # test for a bug that subtracted the per-token *price*
+        # (input_cost_per_token_cache_hit) from the token *count* (prompt_tokens),
+        # which billed nearly all prompt tokens at the full rate on top of the
+        # cache-hit charge -- double-billing the cache-hit tokens.
+        with GitTemporaryDirectory():
+            coder = Coder.create(self.GPT35, None, io=InputOutput())
+            coder.main_model.info = {
+                "input_cost_per_token": 0.00000027,
+                "output_cost_per_token": 0.0000011,
+                "input_cost_per_token_cache_hit": 0.00000007,
+            }
+
+            prompt_tokens = 10_000
+            cache_hit_tokens = 8_000
+            completion_tokens = 500
+            cache_write_tokens = 0
+
+            cost = coder.compute_costs_from_tokens(
+                prompt_tokens, completion_tokens, cache_write_tokens, cache_hit_tokens
+            )
+
+            expected = (
+                cache_hit_tokens * 0.00000007
+                + (prompt_tokens - cache_hit_tokens) * 0.00000027
+                + completion_tokens * 0.0000011
+            )
+            self.assertAlmostEqual(cost, expected, places=10)
+
 
 if __name__ == "__main__":
     unittest.main()
