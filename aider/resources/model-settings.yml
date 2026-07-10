@@ -659,6 +659,28 @@
     max_tokens: 65536
   caches_by_default: true
 
+- name: deepseek/deepseek-v4-flash
+  edit_format: diff
+  use_repo_map: true
+  reminder: sys
+  examples_as_sys_msg: true
+  extra_params:
+    max_tokens: 384000
+  caches_by_default: true
+  use_temperature: false
+  editor_edit_format: editor-diff
+
+- name: deepseek/deepseek-v4-pro
+  edit_format: diff
+  use_repo_map: true
+  reminder: sys
+  examples_as_sys_msg: true
+  extra_params:
+    max_tokens: 384000
+  caches_by_default: true
+  use_temperature: false
+  editor_edit_format: editor-diff
+
 - name: openrouter/openai/gpt-4o
   edit_format: diff
   weak_model_name: openrouter/openai/gpt-4o-mini
@@ -1876,7 +1898,7 @@
   extra_params:
     max_tokens: 128000
   cache_control: true
-  editor_model_name: claude-sonnet-4-6
+  editor_model_name: claude-opus-4-7
   editor_edit_format: editor-diff
   use_temperature: false
   overeager: true
@@ -1889,7 +1911,7 @@
   extra_params:
     max_tokens: 128000
   cache_control: true
-  editor_model_name: claude-sonnet-4-5
+  editor_model_name: claude-opus-4-6
   editor_edit_format: editor-diff
   accepts_settings: ["thinking_tokens"]
   overeager: true
