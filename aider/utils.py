@@ -346,3 +346,46 @@ def printable_shell_command(cmd_list):
         str: Shell-escaped command string.
     """
     return oslex.join(cmd_list)
+
+
+def fetch_api_key_helper(command, timeout=5.0, shell=False, max_output=8192):
+    """Execute a helper command and return (success, key_or_none).
+
+    Args:
+        command: Shell command or executable to run.
+        timeout: Seconds before killing the process.
+        shell: Whether to use sh -c (enables pipes, $(), etc.).
+        max_output: Maximum output bytes allowed.
+
+    Returns:
+        (True, stripped_key) on success.
+        (False, None) if command fails, times out, or output exceeds limit.
+    """
+    if not command or not command.strip():
+        return False, None
+
+    try:
+        result = subprocess.run(
+            command,
+            timeout=timeout,
+            capture_output=True,
+            text=True,
+            shell=shell,
+            check=False,  # We handle exit codes ourselves
+        )
+    except subprocess.TimeoutExpired:
+        return False, None
+    except (OSError, PermissionError):
+        return False, None
+
+    if result.returncode != 0:
+        return False, None
+
+    output = result.stdout.strip()
+    if not output:
+        return False, None
+
+    if len(output.encode()) > max_output:
+        return False, None
+
+    return True, output
