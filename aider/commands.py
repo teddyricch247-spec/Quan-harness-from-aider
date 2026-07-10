@@ -1276,8 +1276,9 @@ class Commands:
             self.io.placeholder = text
 
     def cmd_paste(self, args):
-        """Paste image/text from the clipboard into the chat.\
+        """Paste image/text from the clipboard into the chat.
         Optionally provide a name for the image."""
+        temp_dir = None
         try:
             # Check for image first
             image = ImageGrab.grabclipboard()
@@ -1324,6 +1325,13 @@ class Commands:
 
         except Exception as e:
             self.io.tool_error(f"Error processing clipboard content: {e}")
+        finally:
+            # Clean up temp directory if it was created
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception:
+                    pass
 
     def cmd_read_only(self, args):
         "Add files to the chat that are for reference only, or turn added files to read-only"
