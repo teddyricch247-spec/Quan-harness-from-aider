@@ -89,6 +89,7 @@ claude-opus-4-7-20260416
 claude-sonnet-4-5
 claude-sonnet-4-5-20250929
 claude-sonnet-4-6
+claude-sonnet-4-6-20250929
 claude-haiku-4-5
 claude-haiku-4-5-20251001
 """
@@ -488,6 +489,14 @@ class Model(ModelSettings):
             self.system_prompt_prefix = "Formatting re-enabled. "
             if "reasoning_effort" not in self.accepts_settings:
                 self.accepts_settings.append("reasoning_effort")
+            return  # <--
+
+        if "deepseek" in model and "v4" in model:
+            self.edit_format = "diff"
+            self.use_repo_map = True
+            self.reminder = "sys"
+            self.examples_as_sys_msg = True
+            self.use_temperature = False
             return  # <--
 
         if "deepseek" in model and "v3" in model:
