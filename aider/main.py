@@ -45,7 +45,7 @@ def check_config_files_for_yes(config_files):
     for config_file in config_files:
         if Path(config_file).exists():
             try:
-                with open(config_file, "r") as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     for line in f:
                         if line.strip().startswith("yes:"):
                             print("Configuration error detected.")
@@ -224,7 +224,7 @@ def write_streamlit_credentials():
         empty_creds = '[general]\nemail = ""\n'
 
         os.makedirs(os.path.dirname(credential_path), exist_ok=True)
-        with open(credential_path, "w") as f:
+        with open(credential_path, "w", encoding="utf-8") as f:
             f.write(empty_creds)
     else:
         print("Streamlit credentials already exist.")
@@ -1197,7 +1197,7 @@ def is_first_run_of_new_version(io, verbose=False):
 
     try:
         if installs_file.exists():
-            with open(installs_file, "r") as f:
+            with open(installs_file, "r", encoding="utf-8") as f:
                 installs = json.load(f)
             if verbose:
                 io.tool_output("Installs file exists and loaded")
@@ -1211,7 +1211,7 @@ def is_first_run_of_new_version(io, verbose=False):
         if is_first_run:
             installs[str(key)] = True
             installs_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(installs_file, "w") as f:
+            with open(installs_file, "w", encoding="utf-8") as f:
                 json.dump(installs, f, indent=4)
 
         return is_first_run

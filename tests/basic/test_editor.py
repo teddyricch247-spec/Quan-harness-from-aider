@@ -157,3 +157,40 @@ def test_pipe_editor():
         mock_remove.side_effect = PermissionError
         result = pipe_editor(test_content)
         assert result == modified_content
+
+    # Test pipe_editor when reading fails after editor closes
+    def test_pipe_editor_read_failure():
+        test_content = "Initial content"
+
+        with (
+            patch("aider.editor.write_temp_file") as mock_write,
+            patch("builtins.open") as mock_open,
+            patch("os.remove") as mock_remove,
+            patch("subprocess.call") as mock_subprocess,
+            patch("aider.editor.print_status_message") as mock_print,
+        ):
+            mock_write.return_value = "temp.txt"
+            mock_open.side_effect = OSError("File not found")
+
+            result = pipe_editor(test_content)
+            assert result == test_content  # Returns original content on failure
+            mock_print.assert_called_once()
+            assert "WARNING" in str(mock_print.call_args)
+
+    # Test pipe_editor handles UnicodeDecodeError gracefully
+    def test_pipe_editor_unicode_decode_error():
+        test_content = "Initial content"
+
+        with (
+            patch("aider.editor.write_temp_file") as mock_write,
+            patch("builtins.open") as mock_open,
+            patch("os.remove") as mock_remove,
+            patch("subprocess.call") as mock_subprocess,
+            patch("aider.editor.print_status_message") as mock_print,
+        ):
+            mock_write.return_value = "temp.txt"
+            mock_open.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "invalid")
+
+            result = pipe_editor(test_content)
+            assert result == test_content  # Returns original content on failure
+            mock_print.assert_called_once()

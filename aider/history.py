@@ -132,7 +132,7 @@ def main():
     model_list = [models.Model(name) for name in model_names]
     summarizer = ChatSummary(model_list)
 
-    with open(args.filename, "r") as f:
+    with open(args.filename, "r", encoding="utf-8") as f:
         text = f.read()
 
     summary = summarizer.summarize_chat_history_markdown(text)

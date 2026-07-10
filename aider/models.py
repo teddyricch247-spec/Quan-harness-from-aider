@@ -1092,7 +1092,7 @@ def register_models(model_settings_fnames):
             continue
 
         try:
-            with open(model_settings_fname, "r") as model_settings_file:
+            with open(model_settings_fname, "r", encoding="utf-8") as model_settings_file:
                 model_settings_list = yaml.safe_load(model_settings_file)
 
             for model_settings_dict in model_settings_list:
