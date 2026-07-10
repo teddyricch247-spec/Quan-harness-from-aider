@@ -110,6 +110,45 @@ def get_parser(default_config_files, git_root):
         ),
         default=[],
     )
+    group.add_argument(
+        "--api-key-helper",
+        metavar="COMMAND",
+        help=(
+            "Shell command to fetch a dynamic API key. Executed on-demand when the LLM "
+            "returns an authentication error. Use a plain string for a single command, "
+            'or "provider=cmd" maps for per-provider commands.'
+        ),
+    )
+    group.add_argument(
+        "--api-key-helper-timeout",
+        type=float,
+        default=5.0,
+        metavar="SECONDS",
+        help=(
+            "Timeout in seconds for the API key helper command. "
+            "Default: 5."
+        ),
+    )
+    group.add_argument(
+        "--api-key-helper-max-output",
+        type=int,
+        default=8192,
+        metavar="BYTES",
+        help=(
+            "Maximum output size in bytes from the helper command. "
+            "Default: 8192."
+        ),
+    )
+    group.add_argument(
+        "--api-key-helper-shell",
+        action="store_true",
+        default=False,
+        help=(
+            "Execute the API key helper via shell (enables pipes, $(), etc.). "
+            "Disabled by default for security."
+        ),
+    )
+
     group = parser.add_argument_group("Model settings")
     group.add_argument(
         "--list-models",

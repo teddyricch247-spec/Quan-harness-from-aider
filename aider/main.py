@@ -825,6 +825,10 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         editor_model=args.editor_model,
         editor_edit_format=args.editor_edit_format,
         verbose=args.verbose,
+        api_key_helper_command=getattr(args, "api_key_helper", None),
+        api_key_helper_timeout=getattr(args, "api_key_helper_timeout", 5.0),
+        api_key_helper_shell=getattr(args, "api_key_helper_shell", False),
+        api_key_helper_max_output=getattr(args, "api_key_helper_max_output", 8192),
     )
 
     # Check if deprecated remove_reasoning is set

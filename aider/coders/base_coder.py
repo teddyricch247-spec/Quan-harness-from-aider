@@ -338,6 +338,10 @@ class Coder:
         file_watcher=None,
         auto_copy_context=False,
         auto_accept_architect=True,
+        api_key_helper=None,
+        api_key_helper_timeout=5.0,
+        api_key_helper_shell=False,
+        api_key_helper_max_output=8192,
     ):
         # Fill in a dummy Analytics if needed, but it is never .enable()'d
         self.analytics = analytics if analytics is not None else Analytics()

@@ -5,12 +5,14 @@ import json
 import math
 import os
 import platform
+import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union
+from typing import ClassVar, Optional, Union
 
 import json5
 import yaml
@@ -327,8 +329,21 @@ model_info_manager = ModelInfoManager()
 
 
 class Model(ModelSettings):
+    # Class-level state for dynamic API key caching
+    _dynamic_key_cache: ClassVar[dict[str, tuple[str, float]]] = {}
+    _dynamic_key_locks: ClassVar[dict[str, threading.Lock]] = {}
+
     def __init__(
-        self, model, weak_model=None, editor_model=None, editor_edit_format=None, verbose=False
+        self,
+        model,
+        weak_model=None,
+        editor_model=None,
+        editor_edit_format=None,
+        verbose=False,
+        api_key_helper_command=None,
+        api_key_helper_timeout=5.0,
+        api_key_helper_shell=False,
+        api_key_helper_max_output=8192,
     ):
         # Map any alias to its canonical name
         model = MODEL_ALIASES.get(model, model)
@@ -339,6 +354,12 @@ class Model(ModelSettings):
         self.max_chat_history_tokens = 1024
         self.weak_model = None
         self.editor_model = None
+
+        # Dynamic API key helper settings
+        self.api_key_helper_command = api_key_helper_command
+        self.api_key_helper_timeout = api_key_helper_timeout
+        self.api_key_helper_shell = api_key_helper_shell
+        self.api_key_helper_max_output = api_key_helper_max_output
 
         # Find the extra settings
         self.extra_model_settings = next(
@@ -982,6 +1003,43 @@ class Model(ModelSettings):
 
             os.environ[openai_api_key] = token
 
+    @classmethod
+    def _get_cache_key(cls, model_name, api_base):
+        """Build a cache key from model name and API base URL."""
+        return f"{model_name}:{api_base or ''}"
+
+    def _get_dynamic_key(self):
+        """Get or fetch a dynamic API key via the helper command.
+
+        Returns the cached/fresh key string on success, or None.
+        Uses per-key locking to avoid duplicate fetches under concurrency.
+        """
+        from aider.utils import fetch_api_key_helper
+
+        if not self.api_key_helper_command:
+            return None
+
+        cache_key = self._get_cache_key(self.name, getattr(self, "api_base", "") or "")
+        lock = self._dynamic_key_locks.setdefault(cache_key, threading.Lock())
+
+        with lock:
+            # Check cache first (1-minute TTL)
+            cached = self._dynamic_key_cache.get(cache_key)
+            if cached and time.time() - cached[1] < 60:
+                return cached[0]
+
+            success, key = fetch_api_key_helper(
+                self.api_key_helper_command,
+                timeout=self.api_key_helper_timeout,
+                shell=getattr(self, "api_key_helper_shell", False),
+                max_output=self.api_key_helper_max_output,
+            )
+            if success and key:
+                self._dynamic_key_cache[cache_key] = (key, time.time())
+                return key
+
+            return None
+
     def send_completion(self, messages, functions, stream, temperature=None):
         if os.environ.get("AIDER_SANITY_CHECK_TURNS"):
             sanity_check_messages(messages)
@@ -1033,7 +1091,27 @@ class Model(ModelSettings):
 
             self.github_copilot_token_to_open_ai_key(kwargs["extra_headers"])
 
-        res = litellm.completion(**kwargs)
+        try:
+            res = litellm.completion(**kwargs)
+        except Exception as err:
+            # Check if this is an auth error that the helper can fix
+            from aider.exceptions import LiteLLMExceptions
+
+            ex_info = LiteLLMExceptions().get_ex_info(err)
+            if (
+                self.api_key_helper_command
+                and ex_info.name in ("AuthenticationError", "PermissionDeniedError")
+            ):
+                dynamic_key = self._get_dynamic_key()
+                if dynamic_key:
+                    # Retry with the fresh key
+                    kwargs["api_key"] = dynamic_key
+                    res = litellm.completion(**kwargs)
+                    return hash_object, res
+
+            # Re-raise if we still can't handle it
+            raise
+
         return hash_object, res
 
     def simple_send_with_retries(self, messages):
