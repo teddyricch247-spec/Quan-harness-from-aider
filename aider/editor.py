@@ -132,8 +132,15 @@ def pipe_editor(input_data="", suffix=None, editor=None):
     command_str += " " + filepath
 
     subprocess.call(command_str, shell=True)
-    with open(filepath, "r") as f:
-        output_data = f.read()
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            output_data = f.read()
+    except (OSError, UnicodeDecodeError) as err:
+        print_status_message(
+            False,
+            f"WARNING: Unable to read edited file {filepath!r}: {err}",
+        )
+        return input_data
     try:
         os.remove(filepath)
     except PermissionError:

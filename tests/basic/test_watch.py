@@ -72,6 +72,45 @@ def test_gitignore_patterns():
     tmp_gitignore.unlink()
 
 
+def test_load_gitignores_handles_non_utf8():
+    """Test that load_gitignores handles files with non-UTF8 encoding gracefully"""
+    from aider.watch import load_gitignores
+
+    tmp_gitignore = Path("test_non_utf8.gitignore")
+    latin1_bytes = b"*.custom\n# \xe9l\xe9vation\n"
+    tmp_gitignore.write_bytes(latin1_bytes)
+
+    gitignores = [tmp_gitignore]
+    spec = load_gitignores(gitignores)
+    assert spec is not None
+    assert spec.match_file("file.custom")
+
+    tmp_gitignore.unlink()
+
+
+def test_load_gitignores_handles_utf8_bom():
+    """Test that load_gitignores handles UTF-8 files with BOM without crashing"""
+    from aider.watch import load_gitignores
+
+    tmp_gitignore = Path("test_bom.gitignore")
+    bom_utf8 = b"\xef\xbb\xbf*.custom\n*.test\n"
+    tmp_gitignore.write_bytes(bom_utf8)
+
+    gitignores = [tmp_gitignore]
+    spec = load_gitignores(gitignores)
+    assert spec is not None
+
+    tmp_gitignore.unlink()
+
+
+def test_load_gitignores_none_paths():
+    """Test that load_gitignores returns None when given None or empty list"""
+    from aider.watch import load_gitignores
+
+    assert load_gitignores(None) is None
+    assert load_gitignores([]) is None
+
+
 def test_get_roots_to_watch(tmp_path):
     # Create a test directory structure
     (tmp_path / "included").mkdir()

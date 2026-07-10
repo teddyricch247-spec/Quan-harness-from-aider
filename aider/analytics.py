@@ -247,7 +247,7 @@ class Analytics:
                 "time": int(time.time()),
             }
             try:
-                with open(self.logfile, "a") as f:
+                with open(self.logfile, "a", encoding="utf-8") as f:
                     json.dump(log_entry, f)
                     f.write("\n")
             except OSError:
