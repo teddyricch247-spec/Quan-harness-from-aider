@@ -115,10 +115,11 @@ Aider fits the pattern in two ways:
 - **As the execution agent.** A wrapper can launch aider with
   `aider --message "..."` against a specific file or repository, then run
   the project's own test and lint commands from the allowlist to verify the
-  result. Aider's git integration pairs well with this, because every
-  change is already a reviewable commit that the wrapper can diff and
-  audit. See [scripting aider](/docs/scripting.html) for the command-line
-  entry points a wrapper would use.
+  result. With Aider's default Git integration, edits are automatically
+  committed and are easy to review or undo. Because operators can disable
+  auto-commits, a wrapper should not assume that a commit exists. See
+  [scripting aider](/docs/scripting.html) for the command-line entry points
+  a wrapper would use.
 
 - **As the edited target.** When aider is used to develop a project that is
   itself run under a wrapper, confining aider's working directory to the
