@@ -469,6 +469,10 @@ class InputOutput:
             if not silent:
                 self.tool_error(f"{filename}: unable to read: {err}")
             return
+        except MemoryError:
+            if not silent:
+                self.tool_error(f"{filename}: file is too large to read into memory")
+            return
         except UnicodeError as e:
             if not silent:
                 self.tool_error(f"{filename}: {e}")

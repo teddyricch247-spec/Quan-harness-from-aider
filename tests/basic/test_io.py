@@ -13,6 +13,20 @@ from aider.utils import ChdirTemporaryDirectory
 
 
 class TestInputOutput(unittest.TestCase):
+    def read_text_with_memory_error(self, io, silent=False):
+        class MemoryErrorFile:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                pass
+
+            def read(self):
+                raise MemoryError
+
+        with patch("builtins.open", return_value=MemoryErrorFile()):
+            return io.read_text("huge.txt", silent=silent)
+
     def test_line_endings_validation(self):
         # Test valid line endings
         for ending in ["platform", "lf", "crlf"]:
@@ -29,6 +43,32 @@ class TestInputOutput(unittest.TestCase):
         self.assertIn("platform", str(cm.exception))
         self.assertIn("crlf", str(cm.exception))
         self.assertIn("lf", str(cm.exception))
+
+    def test_read_text_handles_memory_error(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+
+        with patch.object(io, "tool_error") as mock_tool_error:
+            try:
+                result = self.read_text_with_memory_error(io)
+            except MemoryError:
+                result = "raised"
+
+            self.assertIsNone(result)
+            mock_tool_error.assert_called_once_with(
+                "huge.txt: file is too large to read into memory"
+            )
+
+    def test_read_text_memory_error_silent(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+
+        with patch.object(io, "tool_error") as mock_tool_error:
+            try:
+                result = self.read_text_with_memory_error(io, silent=True)
+            except MemoryError:
+                result = "raised"
+
+            self.assertIsNone(result)
+            mock_tool_error.assert_not_called()
 
     def test_no_color_environment_variable(self):
         with patch.dict(os.environ, {"NO_COLOR": "1"}):
