@@ -80,6 +80,60 @@ class TestChatSummary(TestCase):
         self.assertLess(len(result), len(messages))
         self.assertEqual(result[0]["content"], "Summary")
 
+    def test_summarize_uses_most_recent_head_within_model_context(self):
+        self.mock_model.info = {"max_input_tokens": 522}
+        self.chat_summary.max_tokens = 10
+        for message_count in (12, 8192):
+            with self.subTest(message_count=message_count):
+                messages = [
+                    {
+                        "role": "user" if index % 2 == 0 else "assistant",
+                        "content": f"Message {index}",
+                    }
+                    for index in range(message_count)
+                ]
+
+                with mock.patch.object(
+                    self.chat_summary,
+                    "summarize_all",
+                    return_value=[{"role": "user", "content": "Summary"}],
+                ) as summarize_all:
+                    result = self.chat_summary.summarize_real(messages)
+
+                expected_tail = messages[-2:]
+                expected_head = messages[-7:-2]
+                summarize_all.assert_called_once_with(expected_head)
+                self.assertEqual(
+                    result,
+                    [{"role": "user", "content": "Summary"}] + expected_tail,
+                )
+
+    def test_summarize_handles_nonpositive_model_context_budget(self):
+        self.chat_summary.max_tokens = 10
+        messages = [
+            {
+                "role": "user" if index % 2 == 0 else "assistant",
+                "content": f"Message {index}",
+            }
+            for index in range(12)
+        ]
+
+        for max_input_tokens in (512, 511):
+            with self.subTest(max_input_tokens=max_input_tokens):
+                self.mock_model.info = {"max_input_tokens": max_input_tokens}
+                with mock.patch.object(
+                    self.chat_summary,
+                    "summarize_all",
+                    return_value=[{"role": "user", "content": "Summary"}],
+                ) as summarize_all:
+                    result = self.chat_summary.summarize_real(messages)
+
+                summarize_all.assert_called_once_with([])
+                self.assertEqual(
+                    result,
+                    [{"role": "user", "content": "Summary"}] + messages[-2:],
+                )
+
     def test_fallback_to_second_model(self):
         mock_model1 = mock.Mock(spec=Model)
         mock_model1.name = "gpt-4"

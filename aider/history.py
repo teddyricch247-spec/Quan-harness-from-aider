@@ -73,16 +73,16 @@ class ChatSummary:
         model_max_input_tokens = self.models[0].info.get("max_input_tokens") or 4096
         model_max_input_tokens -= 512  # reserve buffer for safety
 
-        keep = []
         total = 0
-
-        # Iterate in original order, summing tokens until limit
-        for tokens, msg in sized_head:
-            total += tokens
-            if total > model_max_input_tokens:
+        start_index = len(sized_head)
+        for i in range(len(sized_head) - 1, -1, -1):
+            tokens, _msg = sized_head[i]
+            if total + tokens > model_max_input_tokens:
                 break
-            keep.append(msg)
-        # No need to reverse lists back and forth
+            total += tokens
+            start_index = i
+
+        keep = [msg for _tokens, msg in sized_head[start_index:]]
 
         summary = self.summarize_all(keep)
 
