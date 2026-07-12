@@ -187,6 +187,29 @@ class TestRepo(unittest.TestCase):
         args = mock_send.call_args[0]  # Get positional args
         self.assertEqual(args[0][0]["content"], custom_prompt)  # Check first message content
 
+    @patch("aider.models.Model.simple_send_with_retries")
+    @patch("aider.models.Model.token_count")
+    def test_get_commit_message_truncates_large_diff(self, mock_token_count, mock_send):
+        # First token_count call returns too many tokens; second (after truncation) returns fewer
+        mock_token_count.side_effect = [10000, 4000]
+        mock_send.return_value = "add feature"
+
+        model = Model("gpt-3.5-turbo")
+        model.info["max_input_tokens"] = 8000
+
+        repo = GitRepo(InputOutput(), None, None, models=[model])
+        large_diff = "x" * 50000
+
+        result = repo.get_commit_message(large_diff, "context")
+
+        self.assertEqual(result, "add feature")
+        mock_send.assert_called_once()
+        # The user content sent to the model should be shorter than the original diff
+        sent_messages = mock_send.call_args[0][0]
+        sent_content = sent_messages[1]["content"]
+        self.assertLess(len(sent_content), len(large_diff))
+        self.assertIn("truncated", sent_content)
+
     @unittest.skipIf(platform.system() == "Windows", "Git env var behavior differs on Windows")
     @patch("aider.repo.GitRepo.get_commit_message")
     def test_commit_with_custom_committer_name(self, mock_send):

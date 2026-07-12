@@ -356,7 +356,14 @@ class GitRepo:
                 max_tokens = model.info.get("max_input_tokens") or 0
 
                 if max_tokens and num_tokens > max_tokens:
-                    continue
+                    # Truncate the content to fit within the model's context window
+                    ratio = max_tokens / num_tokens
+                    keep_chars = int(len(content) * ratio * 0.9)
+                    truncated = content[:keep_chars] + "\n... (truncated)"
+                    messages[1] = dict(role="user", content=truncated)
+                    num_tokens = model.token_count(messages)
+                    if num_tokens > max_tokens:
+                        continue
 
                 commit_message = model.simple_send_with_retries(messages)
                 if commit_message:
