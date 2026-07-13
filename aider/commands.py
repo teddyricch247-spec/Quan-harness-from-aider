@@ -740,7 +740,7 @@ class Commands:
         # Add completions from the 'add' command
         add_completions = self.completions_add()
         for completion in add_completions:
-            if after_command in completion:
+            if after_command.lower() in completion.lower():
                 all_completions.append(
                     Completion(
                         text=completion,
