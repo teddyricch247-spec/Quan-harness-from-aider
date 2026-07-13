@@ -1648,6 +1648,22 @@ class TestCommands(TestCase):
             # Check if all files were removed from abs_read_only_fnames
             self.assertEqual(len(coder.abs_read_only_fnames), 0)
 
+    def test_completions_raw_read_only_case_insensitive(self):
+        from prompt_toolkit.document import Document
+
+        with GitTemporaryDirectory():
+            io = InputOutput(pretty=False, fancy_input=False, yes=False)
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+
+            text = "/read-only m"
+            doc = Document(text, cursor_position=len(text))
+            with mock.patch.object(commands, "completions_add", return_value=["MyFile.txt"]):
+                completions = list(commands.completions_raw_read_only(doc, None))
+
+            texts = [c.text for c in completions]
+            self.assertIn("MyFile.txt", texts)
+
     def test_cmd_diff(self):
         with GitTemporaryDirectory() as repo_dir:
             repo = git.Repo(repo_dir)
