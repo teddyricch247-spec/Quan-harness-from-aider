@@ -34,6 +34,22 @@ cd /to/your/project
 aider --model openai/<model-name>
 ```
 
+
+
+## Example: DaoXE
+
+[DaoXE](https://daoxe.com) is a multi-model multi-protocol AI API gateway with an
+OpenAI-compatible endpoint.
+
+```
+export OPENAI_API_BASE=https://daoxe.com/v1
+export OPENAI_API_KEY=<key>
+aider --model openai/<model-id>
+```
+
+DaoXE is not available in mainland China. See the dedicated
+[DaoXE guide](daoxe.html) for more detail.
+
 See the [model warnings](warnings.html)
 section for information on warnings which will occur
 when working with models that aider is not familiar with.
