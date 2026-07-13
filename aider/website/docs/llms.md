@@ -37,6 +37,8 @@ Aider can work also with local models, for example using [Ollama](/docs/llms/oll
 It can also access
 local models that provide an
 [Open AI compatible API](/docs/llms/openai-compat.html).
+It can also connect to multi-model gateways such as
+[DaoXE](/docs/llms/daoxe.html).
 
 ## Use a capable model
 {: .no_toc }
