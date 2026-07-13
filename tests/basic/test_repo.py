@@ -479,6 +479,108 @@ class TestRepo(unittest.TestCase):
         # Assert that coder.get_tracked_files() returns the three filenames
         self.assertEqual(set(tracked_files), set(created_files))
 
+    def test_get_tracked_files_caches_unchanged_repo(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            for name in ("one.txt", "two.txt"):
+                Path(name).touch()
+                raw_repo.git.add(name)
+            raw_repo.git.commit("-m", "initial")
+
+            git_repo = GitRepo(InputOutput(), None, None)
+            with patch.object(
+                git_repo,
+                "ignored_file",
+                wraps=git_repo.ignored_file,
+            ) as ignored_file:
+                first = git_repo.get_tracked_files()
+                first.append("caller-mutation.txt")
+                second = git_repo.get_tracked_files()
+
+            self.assertEqual(set(second), {"one.txt", "two.txt"})
+            self.assertEqual(ignored_file.call_count, 2)
+            self.assertIsInstance(git_repo.tracked_files_cache, tuple)
+
+    def test_get_tracked_files_cache_tracks_staging_and_unstaging(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            first = Path("first.txt")
+            first.touch()
+            raw_repo.git.add(str(first))
+            raw_repo.git.commit("-m", "initial")
+
+            git_repo = GitRepo(InputOutput(), None, None)
+            self.assertEqual(git_repo.get_tracked_files(), [str(first)])
+
+            second = Path("second.txt")
+            second.touch()
+            raw_repo.git.add(str(second))
+            self.assertEqual(
+                set(git_repo.get_tracked_files()),
+                {str(first), str(second)},
+            )
+
+            raw_repo.git.reset("HEAD", "--", str(second))
+            self.assertEqual(git_repo.get_tracked_files(), [str(first)])
+
+    def test_get_tracked_files_cache_tracks_aiderignore_lifecycle(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            tracked = Path("tracked.txt")
+            tracked.touch()
+            raw_repo.git.add(str(tracked))
+            raw_repo.git.commit("-m", "initial")
+
+            aiderignore = Path(".aiderignore")
+            git_repo = GitRepo(InputOutput(), None, None, str(aiderignore))
+            self.assertEqual(git_repo.get_tracked_files(), [str(tracked)])
+
+            aiderignore.write_text("tracked.txt\n")
+            git_repo.aider_ignore_last_check = 0
+            self.assertEqual(git_repo.get_tracked_files(), [])
+
+            aiderignore.unlink()
+            git_repo.aider_ignore_last_check = 0
+            self.assertEqual(git_repo.get_tracked_files(), [str(tracked)])
+
+    def test_get_tracked_files_does_not_cache_subtree_only(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            tracked = Path("tracked.txt")
+            tracked.touch()
+            raw_repo.git.add(str(tracked))
+            raw_repo.git.commit("-m", "initial")
+
+            git_repo = GitRepo(InputOutput(), None, None, subtree_only=True)
+            self.assertEqual(git_repo.get_tracked_files(), [str(tracked)])
+            self.assertIsNone(git_repo.tracked_files_cache)
+
+    def test_get_tracked_files_cache_uses_linked_worktree_index(self):
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            tracked = Path("tracked.txt")
+            tracked.touch()
+            raw_repo.git.add(str(tracked))
+            raw_repo.git.commit("-m", "initial")
+
+            with tempfile.TemporaryDirectory() as parent:
+                linked = Path(parent) / "linked"
+                raw_repo.git.worktree("add", "-b", "cache-test", str(linked))
+                try:
+                    linked_repo = git.Repo(linked)
+                    git_repo = GitRepo(InputOutput(), None, str(linked))
+                    self.assertEqual(git_repo.get_tracked_files(), [str(tracked)])
+
+                    staged = linked / "staged.txt"
+                    staged.touch()
+                    linked_repo.git.add(str(staged.relative_to(linked)))
+                    self.assertEqual(
+                        set(git_repo.get_tracked_files()),
+                        {str(tracked), str(staged.relative_to(linked))},
+                    )
+                finally:
+                    raw_repo.git.worktree("remove", "--force", str(linked))
+
     def test_get_tracked_files_with_new_staged_file(self):
         with GitTemporaryDirectory():
             # new repo

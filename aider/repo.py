@@ -80,6 +80,7 @@ class GitRepo:
 
         self.normalized_path = {}
         self.tree_files = {}
+        self.tracked_files_cache = None
 
         self.attribute_author = attribute_author
         self.attribute_committer = attribute_committer
@@ -430,6 +431,24 @@ class GitRepo:
 
         return diffs
 
+    def _get_tracked_files_cache_key(self, commit, index):
+        if self.subtree_only:
+            return None
+
+        try:
+            index_stat = os.stat(index.path)
+        except OSError:
+            return None
+
+        return (
+            commit,
+            index_stat.st_mtime_ns,
+            index_stat.st_ctime_ns,
+            index_stat.st_size,
+            index_stat.st_ino,
+            self.aider_ignore_ts,
+        )
+
     def get_tracked_files(self):
         if not self.repo:
             return []
@@ -444,10 +463,18 @@ class GitRepo:
             self.io.tool_output("Is your git repo corrupted?")
             return []
 
+        self.refresh_aider_ignore()
+        index = self.repo.index
+        cache_key = self._get_tracked_files_cache_key(commit, index)
+        cached = self.tracked_files_cache
+        if cache_key is not None and cached is not None and cache_key == cached[0]:
+            return list(cached[1])
+
+        cacheable = True
         files = set()
         if commit:
             if commit in self.tree_files:
-                files = self.tree_files[commit]
+                files = set(self.tree_files[commit])
             else:
                 try:
                     iterator = commit.tree.traverse()
@@ -476,14 +503,18 @@ class GitRepo:
                 self.tree_files[commit] = set(files)
 
         # Add staged files
-        index = self.repo.index
         try:
             staged_files = [path for path, _ in index.entries.keys()]
             files.update(self.normalize_path(path) for path in staged_files)
         except ANY_GIT_ERROR as err:
+            cacheable = False
             self.io.tool_error(f"Unable to read staged files: {err}")
 
         res = [fname for fname in files if not self.ignored_file(fname)]
+        if cache_key is not None and cacheable:
+            self.tracked_files_cache = (cache_key, tuple(res))
+        else:
+            self.tracked_files_cache = None
 
         return res
 
@@ -507,10 +538,15 @@ class GitRepo:
 
         self.aider_ignore_last_check = current_time
 
-        if not self.aider_ignore_file.is_file():
+        if self.aider_ignore_file.is_file():
+            mtime = self.aider_ignore_file.stat().st_mtime
+        else:
+            if self.aider_ignore_ts:
+                self.aider_ignore_ts = 0
+                self.aider_ignore_spec = None
+                self.ignore_file_cache = {}
             return
 
-        mtime = self.aider_ignore_file.stat().st_mtime
         if mtime != self.aider_ignore_ts:
             self.aider_ignore_ts = mtime
             self.ignore_file_cache = {}
