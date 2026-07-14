@@ -30,7 +30,7 @@ class TestWholeFileCoder(unittest.TestCase):
 
         coder = WholeFileCoder(main_model=self.GPT35, io=io, fnames=[])
         coder.partial_response_content = (
-            'To print "Hello, World!" in most programming languages, you can use the following'
+            'To print(Hello, World!" in most programming languages, you can use the following'
             ' code:\n\n```python\nprint("Hello, World!")\n```\n\nThis code will output "Hello,'
             ' World!" to the console.'
         )
