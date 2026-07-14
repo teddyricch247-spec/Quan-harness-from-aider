@@ -1,6 +1,7 @@
 import math
 import os
 import queue
+import shutil
 import tempfile
 import time
 import warnings
@@ -157,12 +158,15 @@ class Voice:
                 audio.export(new_filename, format=use_audio_format)
                 os.remove(temp_wav)
                 filename = new_filename
-            except (CouldntDecodeError, CouldntEncodeError) as e:
-                print(f"Error converting audio: {e}")
-            except (OSError, FileNotFoundError) as e:
-                print(f"File system error during conversion: {e}")
-            except Exception as e:
-                print(f"Unexpected error during audio conversion: {e}")
+            except (CouldntDecodeError, CouldntEncodeError, OSError, FileNotFoundError, Exception) as e:
+                print(f"Error during audio conversion: {e}")
+                # Clean up temp_wav if conversion failed
+                try:
+                    os.remove(temp_wav)
+                except Exception:
+                    pass
+                except Exception:
+                    pass
 
         with open(filename, "rb") as fh:
             try:
