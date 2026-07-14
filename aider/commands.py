@@ -1,6 +1,7 @@
 import glob
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -631,7 +632,7 @@ class Commands:
                 unrestored.add(file_path)
 
         if unrestored:
-            self.io.tool_error(f"Error restoring {file_path}, aborting undo.")
+            self.io.tool_error(f"Error restoring files, aborting undo.")
             self.io.tool_output("Restored files:")
             for file in restored:
                 self.io.tool_output(f"  {file}")
