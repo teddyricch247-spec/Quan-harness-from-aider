@@ -523,7 +523,7 @@ class Coder:
                 self.summarize_start()
 
         # Linting and testing
-        self.linter = Linter(root=self.root, encoding=io.encoding)
+        self.linter = Linter(root=self.root, encoding=self.io.encoding)
         self.auto_lint = auto_lint
         self.setup_lint_cmds(lint_cmds)
         self.lint_cmds = lint_cmds
