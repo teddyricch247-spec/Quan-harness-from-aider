@@ -4,6 +4,7 @@ import re
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import git
 
@@ -271,6 +272,21 @@ print(my_function(3, 4))
             self.assertIn("test_file4.json", result)
 
             # close the open cache files, so Windows won't error
+            del repo_map
+
+    def test_render_tree_handles_lookup_error(self):
+        with IgnorantTemporaryDirectory() as temp_dir:
+            rust_file = os.path.join(temp_dir, "main.rs")
+            with open(rust_file, "w") as f:
+                f.write("fn main() {}\n")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            with patch("aider.repomap.TreeContext", side_effect=LookupError("no rust")):
+                result = repo_map.render_tree(rust_file, "main.rs", [0])
+
+            self.assertEqual(result, "")
             del repo_map
 
 
