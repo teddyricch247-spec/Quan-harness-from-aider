@@ -32,6 +32,22 @@ def default_env_file(git_root):
     return os.path.join(git_root, ".env") if git_root else ".env"
 
 
+def _safe_open_config_file(path):
+    """Open a config file for reading, skipping unreadable paths.
+
+    configargparse opens every default_config_files entry without catching
+    PermissionError/OSError (see #5466). Return a valid empty YAML mapping
+    stream for unreadable paths so startup continues instead of crashing.
+    """
+    try:
+        return open(path, "r", encoding="utf-8")
+    except (PermissionError, OSError, IsADirectoryError):
+        import io
+
+        # YAMLConfigFileParser requires a mapping, not an empty stream.
+        return io.StringIO("{}\n")
+
+
 def get_parser(default_config_files, git_root):
     parser = configargparse.ArgumentParser(
         description="aider is AI pair programming in your terminal",
@@ -39,6 +55,7 @@ def get_parser(default_config_files, git_root):
         default_config_files=default_config_files,
         config_file_parser_class=configargparse.YAMLConfigFileParser,
         auto_env_var_prefix="AIDER_",
+        config_file_open_func=_safe_open_config_file,
     )
     # List of valid edit formats for argparse validation & shtab completion.
     # Dynamically gather them from the registered coder classes so the list

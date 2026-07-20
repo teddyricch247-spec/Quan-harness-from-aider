@@ -479,6 +479,11 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     parser = get_parser(default_config_files, git_root)
     try:
         args, unknown = parser.parse_known_args(argv)
+    except (PermissionError, OSError) as e:
+        # Unreadable .aider.conf.yml should not crash startup (#5466).
+        print(f"Warning: could not read an aider config file: {e}")
+        parser = get_parser([], git_root)
+        args, unknown = parser.parse_known_args(argv)
     except AttributeError as e:
         if all(word in str(e) for word in ["bool", "object", "has", "no", "attribute", "strip"]):
             if check_config_files_for_yes(default_config_files):
