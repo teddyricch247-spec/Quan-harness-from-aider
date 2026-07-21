@@ -448,6 +448,20 @@ def sanity_check_repo(repo, io):
     return False
 
 
+
+def _path_is_dir(path_like) -> bool:
+    """Return whether path is a directory, treating unreadable paths as not dirs.
+
+    Long/invalid filenames raise OSError from Path.stat (e.g. ENAMETOOLONG),
+    which should not crash CLI startup when mistaking a flag for a path (#5465).
+    """
+    try:
+        return Path(path_like).is_dir()
+    except OSError:
+        return False
+
+
+
 def main(argv=None, input=None, output=None, force_git_root=None, return_coder=False):
     report_uncaught_exceptions()
 
@@ -681,7 +695,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     read_only_fnames = []
     for fn in args.read or []:
         path = Path(fn).expanduser().resolve()
-        if path.is_dir():
+        if _path_is_dir(path):
             read_only_fnames.extend(str(f) for f in path.rglob("*") if f.is_file())
         else:
             read_only_fnames.append(str(path))
@@ -689,7 +703,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     if len(all_files) > 1:
         good = True
         for fname in all_files:
-            if Path(fname).is_dir():
+            if _path_is_dir(fname):
                 io.tool_error(f"{fname} is a directory, not provided alone.")
                 good = False
         if not good:
@@ -701,7 +715,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     git_dname = None
     if len(all_files) == 1:
-        if Path(all_files[0]).is_dir():
+        if _path_is_dir(all_files[0]):
             if args.git:
                 git_dname = str(Path(all_files[0]).resolve())
                 fnames = []
