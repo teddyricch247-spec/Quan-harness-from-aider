@@ -596,6 +596,49 @@ class TestMain(TestCase):
                 )
                 MockRepoMap.assert_called_once()
 
+    def test_map_class_option(self):
+        with GitTemporaryDirectory():
+            custom_map = Path("custom_map.py")
+            custom_map.write_text(
+                "from aider.repomap import RepoMap\n"
+                "\n"
+                "class CustomRepoMap(RepoMap):\n"
+                "    pass\n"
+            )
+
+            coder = main(
+                [
+                    "--map-class",
+                    "custom_map.py:CustomRepoMap",
+                    "--map-tokens",
+                    "1000",
+                    "--exit",
+                    "--yes",
+                ],
+                input=DummyInput(),
+                output=DummyOutput(),
+                return_coder=True,
+            )
+
+            self.assertEqual(coder.repo_map.__class__.__name__, "CustomRepoMap")
+
+    def test_map_class_option_reports_invalid_class(self):
+        with GitTemporaryDirectory():
+            result = main(
+                [
+                    "--map-class",
+                    "pathlib:Path",
+                    "--map-tokens",
+                    "1000",
+                    "--exit",
+                    "--yes",
+                ],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+
+            self.assertEqual(result, 1)
+
     def test_read_option(self):
         with GitTemporaryDirectory():
             test_file = "test_file.txt"

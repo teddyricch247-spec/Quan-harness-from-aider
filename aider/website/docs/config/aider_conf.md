@@ -194,6 +194,9 @@ cog.outl("```")
 ## Multiplier for map tokens when no files are specified (default: 2)
 #map-multiplier-no-files: true
 
+## Use a custom RepoMap subclass from MODULE:CLASS or /path/to/file.py:CLASS
+#map-class: xxx
+
 ################
 # History Files:
 

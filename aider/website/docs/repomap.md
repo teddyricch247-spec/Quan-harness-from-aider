@@ -103,6 +103,37 @@ the ones which are most often referenced by other portions of the code.
 These are the key pieces of context that the LLM needs to know to understand
 the overall codebase.
 
+## Customizing the repo map
+
+You can customize repo map generation by subclassing `RepoMap` and overriding
+its `get_tags()` method. For example, save this as `custom_map.py` in the root
+of your repository:
+
+```python
+from aider.repomap import RepoMap
+
+
+class CustomRepoMap(RepoMap):
+    def get_tags(self, fname, rel_fname):
+        tags = super().get_tags(fname, rel_fname)
+        # Return the default tags, modified or extended for your project.
+        return tags
+```
+
+Load the class with:
+
+```bash
+aider --map-class custom_map.py:CustomRepoMap
+```
+
+Relative file paths are resolved from the git repository root. You can also
+load an importable Python module:
+
+```bash
+aider --map-class my_package.maps:CustomRepoMap
+```
+
+Custom repo map files execute as Python code, so only load files you trust.
 
 ## More info
 

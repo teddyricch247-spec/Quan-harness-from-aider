@@ -33,6 +33,7 @@ from aider.llm import litellm  # noqa: F401; properly init litellm on launch
 from aider.models import ModelSettings
 from aider.onboarding import offer_openrouter_oauth, select_default_model
 from aider.repo import ANY_GIT_ERROR, GitRepo
+from aider.repomap_loader import load_repo_map_class
 from aider.report import report_uncaught_exceptions
 from aider.versioncheck import check_version, install_from_main_branch, install_upgrade
 from aider.watch import FileWatcher
@@ -970,6 +971,10 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
     analytics.event("auto_commits", enabled=bool(args.auto_commits))
 
     try:
+        repo_map_class = None
+        if args.map_class:
+            repo_map_class = load_repo_map_class(args.map_class, root=git_root)
+
         coder = Coder.create(
             main_model=main_model,
             edit_format=args.edit_format,
@@ -994,6 +999,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             summarizer=summarizer,
             analytics=analytics,
             map_refresh=args.map_refresh,
+            repo_map_class=repo_map_class,
             cache_prompts=args.cache_prompts,
             map_mul_no_files=args.map_multiplier_no_files,
             num_cache_warming_pings=args.cache_keepalive_pings,

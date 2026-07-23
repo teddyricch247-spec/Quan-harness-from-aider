@@ -326,6 +326,7 @@ class Coder:
         total_cost=0.0,
         analytics=None,
         map_refresh="auto",
+        repo_map_class=None,
         cache_prompts=False,
         num_cache_warming_pings=0,
         suggest_shell_commands=True,
@@ -495,7 +496,8 @@ class Coder:
         has_map_prompt = hasattr(self, "gpt_prompts") and self.gpt_prompts.repo_content_prefix
 
         if use_repo_map and self.repo and has_map_prompt:
-            self.repo_map = RepoMap(
+            repo_map_class = repo_map_class or RepoMap
+            self.repo_map = repo_map_class(
                 map_tokens,
                 self.root,
                 self.main_model,

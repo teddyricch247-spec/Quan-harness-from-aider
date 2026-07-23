@@ -169,6 +169,9 @@ cog.outl("```")
 ## Multiplier for map tokens when no files are specified (default: 2)
 #AIDER_MAP_MULTIPLIER_NO_FILES=true
 
+## Use a custom RepoMap subclass from MODULE:CLASS or /path/to/file.py:CLASS
+#AIDER_MAP_CLASS=
+
 ################
 # History Files:
 

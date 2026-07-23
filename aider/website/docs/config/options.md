@@ -38,7 +38,8 @@ usage: aider [-h] [--model] [--openai-api-key] [--anthropic-api-key]
              [--cache-prompts | --no-cache-prompts]
              [--cache-keepalive-pings] [--map-tokens]
              [--map-refresh] [--map-multiplier-no-files]
-             [--input-history-file] [--chat-history-file]
+             [--map-class] [--input-history-file]
+             [--chat-history-file]
              [--restore-chat-history | --no-restore-chat-history]
              [--llm-history-file] [--dark-mode] [--light-mode]
              [--pretty | --no-pretty] [--stream | --no-stream]
@@ -271,6 +272,10 @@ Environment variable: `AIDER_MAP_REFRESH`
 Multiplier for map tokens when no files are specified (default: 2)  
 Default: 2  
 Environment variable: `AIDER_MAP_MULTIPLIER_NO_FILES`  
+
+### `--map-class SPEC`
+Use a custom RepoMap subclass from MODULE:CLASS or /path/to/file.py:CLASS  
+Environment variable: `AIDER_MAP_CLASS`  
 
 ## History Files:
 

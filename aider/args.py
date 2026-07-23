@@ -265,6 +265,11 @@ def get_parser(default_config_files, git_root):
         default=2,
         help="Multiplier for map tokens when no files are specified (default: 2)",
     )
+    group.add_argument(
+        "--map-class",
+        metavar="SPEC",
+        help="Use a custom RepoMap subclass from MODULE:CLASS or /path/to/file.py:CLASS",
+    )
 
     ##########
     group = parser.add_argument_group("History Files")

@@ -41,6 +41,7 @@ UPDATING_REPO_MAP_MESSAGE = "Updating repo map"
 
 class RepoMap:
     TAGS_CACHE_DIR = f".aider.tags.cache.v{CACHE_VERSION}"
+    TAGS_CACHE_NAMESPACE = None
 
     warned_files = set()
 
@@ -236,7 +237,11 @@ class RepoMap:
         if file_mtime is None:
             return []
 
-        cache_key = fname
+        repo_map_class = type(self)
+        cache_namespace = repo_map_class.__dict__.get("TAGS_CACHE_NAMESPACE")
+        if cache_namespace is None and type(self) is not RepoMap:
+            cache_namespace = f"{repo_map_class.__module__}.{repo_map_class.__qualname__}"
+        cache_key = (cache_namespace, fname) if cache_namespace else fname
         try:
             val = self.TAGS_CACHE.get(cache_key)  # Issue #1308
         except SQLITE_ERRORS as e:
