@@ -132,8 +132,8 @@ def find_non_self_methods(path):
         with open(filename, "r") as file:
             try:
                 node = ast.parse(file.read(), filename=filename)
-            except:  # noqa: E722
-                pass
+            except (SyntaxError, UnicodeDecodeError):
+                continue
             checker = SelfUsageChecker()
             checker.visit(node)
             for method in checker.non_self_methods:

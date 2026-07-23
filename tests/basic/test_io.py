@@ -173,6 +173,18 @@ class TestInputOutput(unittest.TestCase):
             self.assertEqual(result, "test input")
             mock_input.assert_called_once()
 
+    def test_get_input_handles_unicode_encode_error_without_traceback(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        io.prompt_session = MagicMock()
+        error = UnicodeEncodeError("utf-8", "\ud800", 0, 1, "surrogates not allowed")
+        io.prompt_session.prompt.side_effect = error
+
+        with patch.object(io, "tool_error") as mock_tool_error:
+            result = io.get_input("", [], [], MagicMock())
+
+        self.assertEqual(result, "")
+        mock_tool_error.assert_called_once_with(str(error))
+
     @patch("builtins.input")
     def test_confirm_ask_explicit_yes_required(self, mock_input):
         io = InputOutput(pretty=False, fancy_input=False)

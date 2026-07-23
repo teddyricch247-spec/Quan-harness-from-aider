@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from aider.dump import dump  # noqa
-from aider.linter import Linter
+from aider.linter import Linter, lint_python_compile
 
 
 class TestLinter(unittest.TestCase):
@@ -78,6 +78,17 @@ class TestLinter(unittest.TestCase):
             # The result should contain the error message
             self.assertIsNotNone(result)
             self.assertIn("Error message", result.text)
+
+    def test_lint_python_compile_handles_errors_without_line_numbers(self):
+        cases = ["x = 1\0", 'x = "\ud800"']
+
+        for code in cases:
+            with self.subTest(code=repr(code)):
+                result = lint_python_compile("test.py", code)
+
+                self.assertIsNotNone(result)
+                self.assertEqual(result.lines, [0])
+                self.assertTrue(result.text)
 
 
 if __name__ == "__main__":
