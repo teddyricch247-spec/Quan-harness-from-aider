@@ -1,0 +1,32 @@
+# ============================================================
+# Railway Configuration - Aider Agent API
+# ============================================================
+
+[build]
+builder = "DOCKERFILE"
+
+[deploy]
+startCommand = "python -m uvicorn api.main:app --host 0.0.0.0 --port 8080"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+numReplicas = 1
+
+[networking]
+internalPort = 8080
+
+# ============================================================
+# متغيرات البيئة الافتراضية
+# ============================================================
+
+[variables]
+PORT = "8080"
+WORKSPACE_DIR = "/workspace"
+LOG_LEVEL = "INFO"
+CORS_ORIGINS = "*"
+
+# ============================================================
+# التخزين المستمر (مهم جداً)
+# ============================================================
+
+[volumes]
+mountPath = "/workspace"
