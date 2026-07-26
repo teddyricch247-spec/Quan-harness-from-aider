@@ -89,6 +89,11 @@ class TestUtils(unittest.TestCase):
         result = eb.strip_quoted_wrapping(input_text)
         self.assertEqual(result, expected_output)
 
+    def test_strip_quoted_wrapping_only_filename(self):
+        # When res contains only the filename line, stripping it should not raise IndexError
+        result = eb.strip_quoted_wrapping("filename.py", "filename.py")
+        self.assertEqual(result, "")
+
     def test_find_original_update_blocks(self):
         edit = """
 Here's the change:
