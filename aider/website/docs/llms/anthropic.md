@@ -45,6 +45,34 @@ You can use `aider --model <model-name>` to use any other Anthropic model.
 For example, if you want to use a specific version of Opus
 you could do `aider --model claude-3-opus-20240229`.
 
+## Anthropic-compatible endpoints
+
+Aider can also connect to third-party providers that implement the Anthropic Messages API.
+Set `ANTHROPIC_API_BASE` to the provider's root URL, without `/v1/messages`, and set
+`ANTHROPIC_API_KEY` to the key issued by that provider.
+
+For example, to connect to [apiToken.sale](https://apitoken.sale):
+
+```
+# Mac/Linux
+export ANTHROPIC_API_BASE=https://api.apitoken.sale
+export ANTHROPIC_API_KEY=<provider-key>
+
+# Windows, restart shell after setx
+setx ANTHROPIC_API_BASE https://api.apitoken.sale
+setx ANTHROPIC_API_KEY <provider-key>
+```
+
+Use an `anthropic/` model name when starting aider:
+
+```bash
+aider --model anthropic/claude-sonnet-4-6
+```
+
+{: .note }
+apiToken.sale is a third-party provider, not an Anthropic service, and its keys are not
+issued by Anthropic. Review the provider's terms and data-handling policies before use.
+
 ## Thinking tokens
 
 Aider can work with Sonnet 3.7's new thinking tokens, but does not ask Sonnet to use
