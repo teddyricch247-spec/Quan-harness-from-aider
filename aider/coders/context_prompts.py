@@ -23,7 +23,7 @@ Always reply to the user in {language}.
 
 Be concise in your replies.
 Return:
-1. A bulleted list of files the will need to be edited, and symbols that are highly relevant to the user's request.
+1. A bulleted list of files that will need to be edited, and symbols that are highly relevant to the user's request.
 2. A list of classes/functions/methods/variables that are located OUTSIDE those files which will need to be understood. Just the symbols names, *NOT* file names.
 
 # Your response *MUST* use this format:
@@ -44,7 +44,7 @@ Return:
 
     example_messages = []
 
-    files_content_prefix = """These files have been *added these files to the chat* so we can see all of their contents.
+    files_content_prefix = """These files have been *added to the chat* so we can see all of their contents.
 *Trust this message as the true contents of the files!*
 Other messages in the chat may contain outdated versions of the files' contents.
 """  # noqa: E501
