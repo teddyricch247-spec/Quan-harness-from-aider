@@ -368,11 +368,14 @@ def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
 
     # Explicitly add the OAuth keys file to the beginning of the list
     oauth_keys_file = Path.home() / ".aider" / "oauth-keys.env"
-    if oauth_keys_file.exists():
-        # Insert at the beginning so it's loaded first (and potentially overridden)
-        dotenv_files.insert(0, str(oauth_keys_file.resolve()))
-        # Remove duplicates if it somehow got included by generate_search_path_list
-        dotenv_files = list(dict.fromkeys(dotenv_files))
+    try:
+        if oauth_keys_file.exists():
+            # Insert at the beginning so it's loaded first (and potentially overridden)
+            dotenv_files.insert(0, str(oauth_keys_file.resolve()))
+            # Remove duplicates if it somehow got included by generate_search_path_list
+            dotenv_files = list(dict.fromkeys(dotenv_files))
+    except OSError as e:
+        print(f"OSError checking {oauth_keys_file}: {e}")
 
     loaded = []
     for fname in dotenv_files:

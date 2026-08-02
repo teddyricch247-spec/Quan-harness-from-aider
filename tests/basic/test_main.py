@@ -58,6 +58,17 @@ class TestMain(TestCase):
         main(["--yes", "foo.txt", "--exit"], input=DummyInput(), output=DummyOutput())
         self.assertTrue(os.path.exists("foo.txt"))
 
+    def test_load_dotenv_files_unreadable_oauth_keys(self):
+        """Unreadable ~/.aider/oauth-keys.env should not crash startup (#5462)."""
+        with GitTemporaryDirectory() as git_dir:
+            git_dir = Path(git_dir)
+            fake_home = git_dir / "fake_home"
+            fake_home.mkdir()
+            os.environ["HOME"] = str(fake_home)
+            with patch("aider.main.Path.exists", side_effect=PermissionError("denied")):
+                loaded = load_dotenv_files(git_dir, None)
+            self.assertEqual(loaded, [])
+
     @patch("aider.repo.GitRepo.get_commit_message", return_value="mock commit message")
     def test_main_with_empty_git_dir_new_files(self, _):
         make_repo()
