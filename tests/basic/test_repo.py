@@ -19,6 +19,12 @@ class TestRepo(unittest.TestCase):
     def setUp(self):
         self.GPT35 = Model("gpt-3.5-turbo")
 
+    def test_uses_default_git_object_database(self):
+        with GitTemporaryDirectory():
+            git_repo = GitRepo(InputOutput(), None, ".")
+
+            self.assertIsInstance(git_repo.repo.odb, git.GitCmdObjectDB)
+
     def test_diffs_empty_repo(self):
         with GitTemporaryDirectory():
             repo = git.Repo()

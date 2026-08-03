@@ -121,8 +121,7 @@ class GitRepo:
             self.io.tool_error("Files are in different git repos.")
             raise FileNotFoundError
 
-        # https://github.com/gitpython-developers/GitPython/issues/427
-        self.repo = git.Repo(repo_paths.pop(), odbt=git.GitDB)
+        self.repo = git.Repo(repo_paths.pop())
         self.root = utils.safe_abs_path(self.repo.working_tree_dir)
 
         if aider_ignore_file:
