@@ -7,6 +7,22 @@ from .base_coder import Coder
 from .wholefile_prompts import WholeFilePrompts
 
 
+def _looks_like_unified_diff(content):
+    saw_old_file = False
+    saw_new_file = False
+
+    for line in content.splitlines():
+        if line.startswith("--- a/") or line == "--- /dev/null":
+            saw_old_file = True
+            saw_new_file = False
+        elif saw_old_file and (line.startswith("+++ b/") or line == "+++ /dev/null"):
+            saw_new_file = True
+        elif saw_new_file and line.startswith("@@ -"):
+            return True
+
+    return False
+
+
 class WholeFileCoder(Coder):
     """A coder that operates on entire files for code modifications."""
 
@@ -118,6 +134,14 @@ class WholeFileCoder(Coder):
 
                 seen.add(fname)
                 refined_edits.append((fname, fname_source, new_lines))
+
+        if not refined_edits and _looks_like_unified_diff(content):
+            raise ValueError(
+                f"Expected whole-file edits from {self.main_model.name}, but received a unified "
+                "diff; no changes were applied. Retry with complete file contents. If this model "
+                "consistently returns diffs, use `--edit-format diff` or set `edit_format: diff` "
+                "in `.aider.model.settings.yml`."
+            )
 
         return refined_edits
 
