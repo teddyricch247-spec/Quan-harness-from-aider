@@ -2074,27 +2074,26 @@ class Coder:
 
         input_cost_per_token = self.main_model.info.get("input_cost_per_token") or 0
         output_cost_per_token = self.main_model.info.get("output_cost_per_token") or 0
-        input_cost_per_token_cache_hit = (
-            self.main_model.info.get("input_cost_per_token_cache_hit") or 0
+        cache_write_cost_per_token = (
+            self.main_model.info.get("cache_creation_input_token_cost")
+            or input_cost_per_token * 1.25
+        )
+        cache_hit_cost_per_token = (
+            self.main_model.info.get("cache_read_input_token_cost")
+            or self.main_model.info.get("input_cost_per_token_cache_hit")
+            or input_cost_per_token * 0.10
         )
 
-        # deepseek
-        # prompt_cache_hit_tokens + prompt_cache_miss_tokens
-        #    == prompt_tokens == total tokens that were sent
-        #
-        # Anthropic
-        # cache_creation_input_tokens + cache_read_input_tokens + prompt
-        #    == total tokens that were
+        # prompt_tokens is the total input, with both cache classes included:
+        # deepseek reports prompt_cache_hit_tokens + prompt_cache_miss_tokens
+        #    == prompt_tokens, and litellm folds Anthropic's
+        # cache_creation_input_tokens and cache_read_input_tokens into
+        # prompt_tokens as well. Only the remainder is billed at the full rate.
+        uncached_tokens = max(0, prompt_tokens - cache_write_tokens - cache_hit_tokens)
 
-        if input_cost_per_token_cache_hit:
-            # must be deepseek
-            cost += input_cost_per_token_cache_hit * cache_hit_tokens
-            cost += (prompt_tokens - input_cost_per_token_cache_hit) * input_cost_per_token
-        else:
-            # hard code the anthropic adjustments, no-ops for other models since cache_x_tokens==0
-            cost += cache_write_tokens * input_cost_per_token * 1.25
-            cost += cache_hit_tokens * input_cost_per_token * 0.10
-            cost += prompt_tokens * input_cost_per_token
+        cost += cache_write_tokens * cache_write_cost_per_token
+        cost += cache_hit_tokens * cache_hit_cost_per_token
+        cost += uncached_tokens * input_cost_per_token
 
         cost += completion_tokens * output_cost_per_token
         return cost
