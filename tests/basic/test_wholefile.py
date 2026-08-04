@@ -73,6 +73,53 @@ class TestWholeFileCoder(unittest.TestCase):
             updated_content = f.read()
         self.assertEqual(updated_content, "Updated content\n")
 
+    def test_reports_unified_diff_in_whole_mode(self):
+        sample_file = Path("sample.py")
+        sample_file.write_text('print("old")\n')
+
+        io = InputOutput(yes=True)
+        coder = WholeFileCoder(main_model=self.GPT35, io=io, fnames=[str(sample_file)])
+
+        coder.partial_response_content = """--- a/sample.py
++++ b/sample.py
+@@ -1 +1 @@
+-print("old")
++print("new")
+"""
+
+        coder.apply_updates()
+
+        self.assertEqual(sample_file.read_text(), 'print("old")\n')
+        self.assertEqual(coder.num_malformed_responses, 1)
+        reflected_message = coder.reflected_message.lower()
+        self.assertIn("gpt-3.5-turbo", reflected_message)
+        self.assertIn("expected whole-file edits", reflected_message)
+        self.assertIn("unified diff", reflected_message)
+        self.assertIn("no changes were applied", reflected_message)
+        self.assertIn("retry with complete file contents", reflected_message)
+        self.assertIn("--edit-format diff", reflected_message)
+        self.assertIn(".aider.model.settings.yml", reflected_message)
+
+    def test_get_edits_rejects_unified_diff(self):
+        io = InputOutput(yes=True)
+        coder = WholeFileCoder(main_model=self.GPT35, io=io, fnames=["sample.py"])
+        coder.partial_response_content = """--- a/sample.py
++++ b/sample.py
+@@ -1 +1 @@
+-print("old")
++print("new")
+"""
+
+        with self.assertRaisesRegex(ValueError, "received a unified diff"):
+            coder.get_edits()
+
+    def test_get_edits_allows_no_edit_response(self):
+        io = InputOutput(yes=True)
+        coder = WholeFileCoder(main_model=self.GPT35, io=io, fnames=["sample.py"])
+        coder.partial_response_content = "No changes are needed."
+
+        self.assertEqual(coder.get_edits(), [])
+
     def test_update_files_live_diff(self):
         # Create a sample file in the temporary directory
         sample_file = "sample.txt"
