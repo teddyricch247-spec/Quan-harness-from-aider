@@ -15,6 +15,7 @@ from aider.coders import Coder
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
 from aider.main import check_gitignore, load_dotenv_files, main, setup_git
+from aider.main import set_ai_agent_env
 from aider.utils import GitTemporaryDirectory, IgnorantTemporaryDirectory, make_repo
 
 
@@ -44,6 +45,20 @@ class TestMain(TestCase):
         os.environ.update(self.original_env)
         self.input_patcher.stop()
         self.webbrowser_patcher.stop()
+
+    def test_set_ai_agent_env_defaults_to_aider(self):
+        os.environ.pop("AI_AGENT", None)
+
+        set_ai_agent_env()
+
+        self.assertEqual(os.environ["AI_AGENT"], "aider")
+
+    def test_set_ai_agent_env_preserves_explicit_value(self):
+        os.environ["AI_AGENT"] = "wrapper"
+
+        set_ai_agent_env()
+
+        self.assertEqual(os.environ["AI_AGENT"], "wrapper")
 
     def test_main_with_empty_dir_no_files_on_command(self):
         main(["--no-git", "--exit", "--yes"], input=DummyInput(), output=DummyOutput())
