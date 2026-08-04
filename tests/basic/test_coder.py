@@ -1433,6 +1433,89 @@ This command will print 'Hello, World!' to the console."""
                     # (because user rejected the changes)
                     mock_editor.run.assert_not_called()
 
+    def test_compute_costs_from_tokens_uncached(self):
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+        }
+
+        cost = coder.compute_costs_from_tokens(1000, 100, 0, 0)
+        self.assertAlmostEqual(cost, 1000 * 1e-06 + 100 * 5e-06)
+
+    def test_compute_costs_from_tokens_anthropic_cache_hit(self):
+        # https://github.com/Aider-AI/aider/issues/5516
+        # litellm folds cache_read_input_tokens into prompt_tokens, so the
+        # cached tokens must not also be billed at the full input rate
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+            "cache_creation_input_token_cost": 1.25e-06,
+            "cache_read_input_token_cost": 1e-07,
+        }
+
+        cost = coder.compute_costs_from_tokens(17111, 0, 0, 17102)
+        self.assertAlmostEqual(cost, 17102 * 1e-07 + 9 * 1e-06)
+
+    def test_compute_costs_from_tokens_anthropic_cache_write(self):
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+            "cache_creation_input_token_cost": 1.25e-06,
+            "cache_read_input_token_cost": 1e-07,
+        }
+
+        cost = coder.compute_costs_from_tokens(17111, 0, 17102, 0)
+        self.assertAlmostEqual(cost, 17102 * 1.25e-06 + 9 * 1e-06)
+
+    def test_compute_costs_from_tokens_anthropic_multiplier_fallback(self):
+        # model info without explicit cache prices falls back to the
+        # 1.25x write and 0.10x read multipliers
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+        }
+
+        cost = coder.compute_costs_from_tokens(1000, 0, 600, 300)
+        self.assertAlmostEqual(cost, 600 * 1e-06 * 1.25 + 300 * 1e-06 * 0.10 + 100 * 1e-06)
+
+    def test_compute_costs_from_tokens_deepseek_cache_hit(self):
+        # deepseek reports prompt_cache_hit_tokens + prompt_cache_miss_tokens
+        # == prompt_tokens; the old code subtracted the cache-hit *price* from
+        # prompt_tokens instead of the cache-hit token count
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+            "input_cost_per_token_cache_hit": 1e-07,
+        }
+
+        cost = coder.compute_costs_from_tokens(10000, 0, 0, 9000)
+        self.assertAlmostEqual(cost, 9000 * 1e-07 + 1000 * 1e-06)
+
+    def test_compute_costs_from_tokens_never_negative(self):
+        # a provider reporting cache classes inconsistently must not
+        # produce a negative uncached remainder
+        io = InputOutput(yes=True)
+        coder = Coder.create(self.GPT35, None, io)
+        coder.main_model.info = {
+            "input_cost_per_token": 1e-06,
+            "output_cost_per_token": 5e-06,
+            "cache_creation_input_token_cost": 1.25e-06,
+            "cache_read_input_token_cost": 1e-07,
+        }
+
+        cost = coder.compute_costs_from_tokens(100, 0, 0, 500)
+        self.assertAlmostEqual(cost, 500 * 1e-07)
+
 
 if __name__ == "__main__":
     unittest.main()
