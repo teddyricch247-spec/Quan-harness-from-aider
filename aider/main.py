@@ -40,6 +40,11 @@ from aider.watch import FileWatcher
 from .dump import dump  # noqa: F401
 
 
+def set_ai_agent_env():
+    if not os.environ.get("AI_AGENT", "").strip():
+        os.environ["AI_AGENT"] = "aider"
+
+
 def check_config_files_for_yes(config_files):
     found = False
     for config_file in config_files:
@@ -596,6 +601,8 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
                 io.tool_error(f"Invalid --set-env format: {env_setting}")
                 io.tool_output("Format should be: ENV_VAR_NAME=value")
                 return 1
+
+    set_ai_agent_env()
 
     # Process any API keys set via --api-key
     if args.api_key:
