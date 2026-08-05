@@ -33,7 +33,8 @@ Aider works with a number of **free** API providers:
 ## Local models
 {: .no_toc }
 
-Aider can work also with local models, for example using [Ollama](/docs/llms/ollama.html).
+Aider can work also with local models, for example using [Ollama](/docs/llms/ollama.html)
+or [QVAC](/docs/llms/qvac.html).
 It can also access
 local models that provide an
 [Open AI compatible API](/docs/llms/openai-compat.html).
