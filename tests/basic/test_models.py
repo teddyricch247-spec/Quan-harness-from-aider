@@ -30,6 +30,22 @@ class TestModels(unittest.TestCase):
         info = manager.get_model_info("non-existent-model")
         self.assertEqual(info, {})
 
+    def test_fuzzy_match_models_handles_non_dict_metadata(self):
+        # litellm.model_cost can contain non-dict entries (e.g. a list under
+        # "sample_spec"); fuzzy_match_models must skip them instead of raising
+        # AttributeError: 'list' object has no attribute 'get'.
+        import litellm
+
+        from aider.models import fuzzy_match_models
+
+        bogus = {
+            "sample_spec": ["not", "a", "dict"],
+            "gpt-4-test": {"mode": "chat", "litellm_provider": "openai"},
+        }
+        with patch.object(litellm, "model_cost", bogus):
+            result = fuzzy_match_models("gpt-4-test")
+        self.assertIn("openai/gpt-4-test", result)
+
     def test_max_context_tokens(self):
         model = Model("gpt-3.5-turbo")
         self.assertEqual(model.info["max_input_tokens"], 16385)

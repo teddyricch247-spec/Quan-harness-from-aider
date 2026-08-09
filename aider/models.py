@@ -1233,6 +1233,11 @@ def fuzzy_match_models(name):
 
     for orig_model, attrs in model_metadata:
         model = orig_model.lower()
+        # litellm.model_cost holds a few non-dict entries (e.g. a list under
+        # "sample_spec"); skip anything that is not a metadata mapping rather
+        # than crashing on attrs.get(...).
+        if not isinstance(attrs, dict):
+            continue
         if attrs.get("mode") != "chat":
             continue
         provider = attrs.get("litellm_provider", "").lower()
