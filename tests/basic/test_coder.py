@@ -1433,6 +1433,35 @@ This command will print 'Hello, World!' to the console."""
                     # (because user rejected the changes)
                     mock_editor.run.assert_not_called()
 
+    def test_compute_costs_from_tokens_deepseek_cache_hit(self):
+        # Deepseek-style pricing: input_cost_per_token_cache_hit is set,
+        # so the deepseek branch of compute_costs_from_tokens is taken.
+        with GitTemporaryDirectory():
+            io = InputOutput()
+            coder = Coder.create(self.GPT35, None, io)
+            coder.main_model.info = {
+                "input_cost_per_token": 2.7e-07,
+                "output_cost_per_token": 1.1e-06,
+                "input_cost_per_token_cache_hit": 2.8e-08,
+            }
+
+            # 10,000 total prompt tokens, 9,000 of which were cache hits.
+            cost = coder.compute_costs_from_tokens(
+                prompt_tokens=10000,
+                completion_tokens=0,
+                cache_write_tokens=0,
+                cache_hit_tokens=9000,
+            )
+
+            # The 9,000 cache-hit tokens are billed at the cache-hit rate,
+            # and only the remaining 1,000 uncached tokens at the full
+            # input rate. Before the fix, the uncached remainder was
+            # (prompt_tokens - input_cost_per_token_cache_hit), i.e. still
+            # ~10,000, so the full prompt got double-billed on top of the
+            # cache-hit charge.
+            expected = 9000 * 2.8e-08 + 1000 * 2.7e-07
+            self.assertAlmostEqual(cost, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
