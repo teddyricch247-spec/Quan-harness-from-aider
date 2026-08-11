@@ -210,6 +210,12 @@ def get_parser(default_config_files, git_root):
         help="Only work with models that have meta-data available (default: True)",
     )
     group.add_argument(
+        "--open-model-warnings",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Allow opening model warning documentation in a browser (default: True)",
+    )
+    group.add_argument(
         "--check-model-accepts-settings",
         action=argparse.BooleanOptionalAction,
         default=True,

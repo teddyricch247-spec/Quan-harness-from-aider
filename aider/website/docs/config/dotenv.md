@@ -142,6 +142,9 @@ cog.outl("```")
 ## Only work with models that have meta-data available (default: True)
 #AIDER_SHOW_MODEL_WARNINGS=true
 
+## Allow opening model warning documentation in a browser (default: True)
+#AIDER_OPEN_MODEL_WARNINGS=true
+
 ## Check if model accepts settings like reasoning_effort/thinking_tokens (default: True)
 #AIDER_CHECK_MODEL_ACCEPTS_SETTINGS=true
 

@@ -1120,6 +1120,27 @@ class TestMain(TestCase):
                 self.assertEqual(result, 1)  # Expect failure since no model could be selected
                 mock_offer_oauth.assert_called_once()
 
+    @patch("aider.main.models.sanity_check_models", return_value=True)
+    def test_no_open_model_warnings_keeps_terminal_warning(self, _):
+        with patch.object(InputOutput, "offer_url") as mock_offer_url:
+            with patch.object(InputOutput, "tool_output") as mock_tool_output:
+                main(
+                    [
+                        "--model",
+                        "gpt-4o",
+                        "--no-open-model-warnings",
+                        "--no-show-release-notes",
+                        "--no-git",
+                        "--exit",
+                        "--yes",
+                    ],
+                    input=DummyInput(),
+                    output=DummyOutput(),
+                )
+
+        mock_offer_url.assert_not_called()
+        mock_tool_output.assert_any_call("You can skip this check with --no-show-model-warnings")
+
     def test_model_precedence(self):
         with GitTemporaryDirectory():
             # Test that earlier API keys take precedence

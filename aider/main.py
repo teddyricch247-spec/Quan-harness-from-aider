@@ -893,12 +893,13 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             analytics.event("model warning", main_model=main_model)
             io.tool_output("You can skip this check with --no-show-model-warnings")
 
-            try:
-                io.offer_url(urls.model_warnings, "Open documentation url for more info?")
-                io.tool_output()
-            except KeyboardInterrupt:
-                analytics.event("exit", reason="Keyboard interrupt during model warnings")
-                return 1
+            if args.open_model_warnings:
+                try:
+                    io.offer_url(urls.model_warnings, "Open documentation url for more info?")
+                    io.tool_output()
+                except KeyboardInterrupt:
+                    analytics.event("exit", reason="Keyboard interrupt during model warnings")
+                    return 1
 
     repo = None
     if args.git:

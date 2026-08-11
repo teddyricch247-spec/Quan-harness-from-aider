@@ -33,6 +33,7 @@ usage: aider [-h] [--model] [--openai-api-key] [--anthropic-api-key]
              [--auto-accept-architect | --no-auto-accept-architect]
              [--weak-model] [--editor-model] [--editor-edit-format]
              [--show-model-warnings | --no-show-model-warnings]
+             [--open-model-warnings | --no-open-model-warnings]
              [--check-model-accepts-settings | --no-check-model-accepts-settings]
              [--max-chat-history-tokens]
              [--cache-prompts | --no-cache-prompts]
@@ -228,6 +229,14 @@ Environment variable: `AIDER_SHOW_MODEL_WARNINGS`
 Aliases:
   - `--show-model-warnings`
   - `--no-show-model-warnings`
+
+### `--open-model-warnings`
+Allow opening model warning documentation in a browser (default: True)  
+Default: True  
+Environment variable: `AIDER_OPEN_MODEL_WARNINGS`  
+Aliases:
+  - `--open-model-warnings`
+  - `--no-open-model-warnings`
 
 ### `--check-model-accepts-settings`
 Check if model accepts settings like reasoning_effort/thinking_tokens (default: True)  
