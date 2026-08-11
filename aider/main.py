@@ -1131,7 +1131,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         except SwitchCoder:
             pass
         analytics.event("exit", reason="Completed --message")
-        return
+        return 1 if coder.num_llm_errors else None
 
     if args.message_file:
         try:
@@ -1148,7 +1148,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             return 1
 
         analytics.event("exit", reason="Completed --message-file")
-        return
+        return 1 if coder.num_llm_errors else None
 
     if args.exit:
         analytics.event("exit", reason="Exit flag set")

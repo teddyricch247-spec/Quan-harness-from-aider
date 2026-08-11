@@ -338,6 +338,40 @@ class TestMain(TestCase):
 
         os.remove(message_file_path)
 
+    def test_main_message_returns_1_on_llm_error(self):
+        with patch("aider.coders.Coder.create") as MockCoder:
+            mock_coder = MagicMock()
+            mock_coder.num_llm_errors = 1
+            MockCoder.return_value = mock_coder
+            res = main(["--yes", "--message", "hi"], input=DummyInput(), output=DummyOutput())
+            self.assertEqual(res, 1)
+
+    def test_main_message_returns_none_without_llm_error(self):
+        with patch("aider.coders.Coder.create") as MockCoder:
+            mock_coder = MagicMock()
+            mock_coder.num_llm_errors = 0
+            MockCoder.return_value = mock_coder
+            res = main(["--yes", "--message", "hi"], input=DummyInput(), output=DummyOutput())
+            self.assertIsNone(res)
+
+    def test_main_message_file_returns_1_on_llm_error(self):
+        message_file_path = tempfile.mktemp()
+        with open(message_file_path, "w", encoding="utf-8") as message_file:
+            message_file.write("This is a test message from a file.")
+
+        with patch("aider.coders.Coder.create") as MockCoder:
+            mock_coder = MagicMock()
+            mock_coder.num_llm_errors = 1
+            MockCoder.return_value = mock_coder
+            res = main(
+                ["--yes", "--message-file", message_file_path],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+            self.assertEqual(res, 1)
+
+        os.remove(message_file_path)
+
     def test_encodings_arg(self):
         fname = "foo.py"
 

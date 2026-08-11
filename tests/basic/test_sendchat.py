@@ -148,6 +148,26 @@ class TestSendChat(unittest.TestCase):
         result = ensure_alternating_roles(messages)
         assert result == expected
 
+    def test_send_message_num_llm_errors_fatal_error(self):
+        from aider.coders import Coder
+        from aider.io import InputOutput
+
+        coder = Coder.create(
+            Model("gpt-4"),
+            None,
+            io=InputOutput(pretty=False, yes=True),
+            map_tokens=0,
+            use_git=False,
+        )
+        with patch(
+            "litellm.completion",
+            side_effect=litellm.NotFoundError(
+                "invalid", llm_provider="test", model="gpt-4"
+            ),
+        ):
+            coder.run(with_message="hi")
+        self.assertEqual(coder.num_llm_errors, 1)
+
     def test_ensure_alternating_roles_mixed_sequence(self):
         from aider.sendchat import ensure_alternating_roles
 
