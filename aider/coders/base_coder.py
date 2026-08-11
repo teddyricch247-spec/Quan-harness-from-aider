@@ -95,6 +95,7 @@ class Coder:
     repo_map = None
     functions = None
     num_exhausted_context_windows = 0
+    num_llm_errors = 0
     num_malformed_responses = 0
     last_keyboard_interrupt = None
     num_reflections = 0
@@ -1474,6 +1475,7 @@ class Coder:
                     if not should_retry:
                         self.mdstream = None
                         self.check_and_open_urls(err, ex_info.description)
+                        self.num_llm_errors += 1
                         break
 
                     err_msg = str(err)
