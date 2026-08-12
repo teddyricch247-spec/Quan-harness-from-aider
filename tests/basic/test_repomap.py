@@ -274,6 +274,71 @@ print(my_function(3, 4))
             del repo_map
 
 
+    def test_repo_map_auto_cache_not_polluted_by_mentions(self):
+        # Regression test for #5529.
+        #
+        # On a huge repo, refresh="auto" arms the repo-map cache once a single
+        # map generation is slow (>1s). The cache key must NOT include the
+        # prompt-derived mentioned_fnames/mentioned_idents: they only affect
+        # ranking personalization, so including them makes every prompt that
+        # mentions a different file/identifier miss the cache and re-run the
+        # full (20-minute on the Linux kernel) repo scan.
+        with GitTemporaryDirectory() as temp_dir:
+            repo = git.Repo(temp_dir)
+
+            file1_content = "def function1():\n    return 'Hello from file1'\n"
+            file2_content = "def function2():\n    return 'Hello from file2'\n"
+
+            with open(os.path.join(temp_dir, "file1.py"), "w") as f:
+                f.write(file1_content)
+            with open(os.path.join(temp_dir, "file2.py"), "w") as f:
+                f.write(file2_content)
+
+            repo.index.add(["file1.py", "file2.py"])
+            repo.index.commit("Initial commit")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io, refresh="auto")
+            other_files = [
+                os.path.join(temp_dir, "file1.py"),
+                os.path.join(temp_dir, "file2.py"),
+            ]
+
+            # Count how many times the expensive (uncached) scan runs.
+            scans = {"count": 0}
+            original_uncached = repo_map.get_ranked_tags_map_uncached
+
+            def counting_uncached(*args, **kwargs):
+                scans["count"] += 1
+                return original_uncached(*args, **kwargs)
+
+            repo_map.get_ranked_tags_map_uncached = counting_uncached
+
+            # First request: full scan happens once (nothing cached yet).
+            first_map = repo_map.get_repo_map(
+                [], other_files, mentioned_fnames={"file1.py"}, mentioned_idents={"function1"}
+            )
+            self.assertIn("function1", first_map)
+            self.assertEqual(scans["count"], 1)
+
+            # Simulate a huge repo where the first generation was slow (>1s),
+            # which is what arms the refresh="auto" map cache.
+            repo_map.map_processing_time = 2.0
+
+            # Second request mentions different files/identifiers. The files on
+            # disk are unchanged, so the expensive scan must NOT run again.
+            second_map = repo_map.get_repo_map(
+                [], other_files, mentioned_fnames={"file2.py"}, mentioned_idents={"function2"}
+            )
+            self.assertIn("file1.py", second_map)
+            self.assertIn("file2.py", second_map)
+            self.assertEqual(scans["count"], 1)
+
+            # close the open cache files, so Windows won't error
+            del repo_map
+            del repo
+
+
 class TestRepoMapTypescript(unittest.TestCase):
     def setUp(self):
         self.GPT35 = Model("gpt-3.5-turbo")
