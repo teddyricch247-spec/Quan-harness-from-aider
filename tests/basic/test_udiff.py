@@ -114,6 +114,26 @@ These changes will add the `--check-update` option to the command-line interface
         self.assertEqual(len(edits), 2)
         self.assertEqual(len(edits[0][1]), 3)
 
+    def test_find_multi_diffs_with_git_prefixes(self):
+        content = """```diff
+--- a/file1.txt
++++ b/file1.txt
+@@ -1 +1 @@
+-old one
++new one
+
+--- a/file2.txt
++++ b/file2.txt
+@@ -1 +1 @@
+-old two
++new two
+```
+"""
+
+        edits = find_diffs(content)
+
+        self.assertEqual([edit[0] for edit in edits], ["file1.txt", "file2.txt"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -334,6 +334,12 @@ def find_diffs(content):
     return edits
 
 
+def normalize_diff_path(a_fname, b_fname):
+    if (a_fname.startswith("a/") or a_fname == "/dev/null") and b_fname.startswith("b/"):
+        return b_fname[2:]
+    return b_fname
+
+
 def process_fenced_block(lines, start_line_num):
     for line_num in range(start_line_num, len(lines)):
         line = lines[line_num]
@@ -348,12 +354,7 @@ def process_fenced_block(lines, start_line_num):
         a_fname = block[0][4:].strip()
         b_fname = block[1][4:].strip()
 
-        # Check if standard git diff prefixes are present (or /dev/null) and strip them
-        if (a_fname.startswith("a/") or a_fname == "/dev/null") and b_fname.startswith("b/"):
-            fname = b_fname[2:]
-        else:
-            # Otherwise, assume the path is as intended
-            fname = b_fname
+        fname = normalize_diff_path(a_fname, b_fname)
 
         block = block[2:]
     else:
@@ -370,6 +371,8 @@ def process_fenced_block(lines, start_line_num):
             continue
 
         if line.startswith("+++ ") and hunk[-2].startswith("--- "):
+            a_fname = hunk[-2][4:].strip()
+            b_fname = line[4:].strip()
             if hunk[-3] == "\n":
                 hunk = hunk[:-3]
             else:
@@ -379,7 +382,7 @@ def process_fenced_block(lines, start_line_num):
             hunk = []
             keeper = False
 
-            fname = line[4:].strip()
+            fname = normalize_diff_path(a_fname, b_fname)
             continue
 
         op = line[0]
