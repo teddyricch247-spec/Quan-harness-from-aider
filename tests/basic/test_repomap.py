@@ -4,8 +4,10 @@ import re
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import git
+from tree_sitter import QueryError
 
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
@@ -271,6 +273,21 @@ print(my_function(3, 4))
             self.assertIn("test_file4.json", result)
 
             # close the open cache files, so Windows won't error
+            del repo_map
+
+    def test_get_tags_raw_skips_query_error(self):
+        with IgnorantTemporaryDirectory() as temp_dir:
+            py_file = os.path.join(temp_dir, "test_query_error.py")
+            with open(py_file, "w") as f:
+                f.write("def foo():\n    return 1\n")
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            with patch("aider.repomap.Query", side_effect=QueryError("Invalid node type: module")):
+                result = list(repo_map.get_tags_raw(py_file, "test_query_error.py"))
+
+            self.assertEqual(result, [])
             del repo_map
 
 
