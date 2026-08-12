@@ -583,17 +583,19 @@ class RepoMap:
         force_refresh=False,
     ):
         # Create a cache key
+        #
+        # The key is built only from the file set (chat_fnames + other_fnames)
+        # and the token budget, NOT from the prompt-derived mentioned_fnames /
+        # mentioned_idents. Those only affect per-request ranking
+        # personalization; they do not change the underlying (expensive) repo
+        # scan. Including them in the key means every prompt that mentions a
+        # different file/identifier misses the cache and re-runs the full scan
+        # -- ~20 minutes on a repo the size of the Linux kernel. See #5529.
         cache_key = [
             tuple(sorted(chat_fnames)) if chat_fnames else None,
             tuple(sorted(other_fnames)) if other_fnames else None,
             max_map_tokens,
         ]
-
-        if self.refresh == "auto":
-            cache_key += [
-                tuple(sorted(mentioned_fnames)) if mentioned_fnames else None,
-                tuple(sorted(mentioned_idents)) if mentioned_idents else None,
-            ]
         cache_key = tuple(cache_key)
 
         use_cache = False
