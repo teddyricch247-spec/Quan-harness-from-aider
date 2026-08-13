@@ -3,17 +3,16 @@
 </p>
 
 <p align="center">
-  <a href="README.md"><strong>English</strong></a> ·
-  <a href="README.ru.md">Русский</a>
+  <a href="README.md">English</a> ·
+  <a href="README.ru.md"><strong>Русский</strong></a>
 </p>
 
 <h1 align="center">
-AI Pair Programming in Your Terminal
+AI pair programming в вашем терминале
 </h1>
 
-
 <p align="center">
-Aider lets you pair program with LLMs to start a new project or build on your existing codebase. 
+Aider позволяет pair-program с LLM: начать новый проект или развивать существующий codebase.
 </p>
 
 <p align="center">
@@ -42,76 +41,76 @@ src="https://img.shields.io/badge/🔄%20Singularity-88%25-e74c3c?style=flat-squ
 <!--[[[end]]]-->  
 </p>
 
-## Features
+## Возможности
 
-### [Cloud and local LLMs](https://aider.chat/docs/llms.html)
+### [Облачные и локальные LLM](https://aider.chat/docs/llms.html)
 
 <a href="https://aider.chat/docs/llms.html"><img src="https://aider.chat/assets/icons/brain.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Aider works best with Claude 3.7 Sonnet, DeepSeek R1 & Chat V3, OpenAI o1, o3-mini & GPT-4o, but can connect to almost any LLM, including local models.
+Лучше всего Aider работает с Claude 3.7 Sonnet, DeepSeek R1 & Chat V3, OpenAI o1, o3-mini & GPT-4o, но подключается почти к любой LLM, включая локальные модели.
 
 <br>
 
-### [Maps your codebase](https://aider.chat/docs/repomap.html)
+### [Карта codebase](https://aider.chat/docs/repomap.html)
 
 <a href="https://aider.chat/docs/repomap.html"><img src="https://aider.chat/assets/icons/map-outline.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Aider makes a map of your entire codebase, which helps it work well in larger projects.
+Aider строит map всего codebase — это помогает в крупных проектах.
 
 <br>
 
-### [100+ code languages](https://aider.chat/docs/languages.html)
+### [100+ языков](https://aider.chat/docs/languages.html)
 
 <a href="https://aider.chat/docs/languages.html"><img src="https://aider.chat/assets/icons/code-tags.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Aider works with most popular programming languages: python, javascript, rust, ruby, go, cpp, php, html, css, and dozens more.
+Python, JavaScript, Rust, Ruby, Go, C++, PHP, HTML, CSS и десятки других.
 
 <br>
 
 ### [Git integration](https://aider.chat/docs/git.html)
 
 <a href="https://aider.chat/docs/git.html"><img src="https://aider.chat/assets/icons/source-branch.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Aider automatically commits changes with sensible commit messages. Use familiar git tools to easily diff, manage and undo AI changes.
+Автоматические коммиты с осмысленными сообщениями. Diff, manage и undo AI-изменений привычными git-инструментами.
 
 <br>
 
-### [Use in your IDE](https://aider.chat/docs/usage/watch.html)
+### [В вашей IDE](https://aider.chat/docs/usage/watch.html)
 
 <a href="https://aider.chat/docs/usage/watch.html"><img src="https://aider.chat/assets/icons/monitor.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Use aider from within your favorite IDE or editor. Ask for changes by adding comments to your code and aider will get to work.
+Работайте из IDE/редактора: комментарии в коде — и Aider берётся за изменения.
 
 <br>
 
-### [Images & web pages](https://aider.chat/docs/usage/images-urls.html)
+### [Картинки и веб-страницы](https://aider.chat/docs/usage/images-urls.html)
 
 <a href="https://aider.chat/docs/usage/images-urls.html"><img src="https://aider.chat/assets/icons/image-multiple.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Add images and web pages to the chat to provide visual context, screenshots, reference docs, etc.
+Добавляйте изображения и URL в чат: скриншоты, reference docs и т.д.
 
 <br>
 
 ### [Voice-to-code](https://aider.chat/docs/usage/voice.html)
 
 <a href="https://aider.chat/docs/usage/voice.html"><img src="https://aider.chat/assets/icons/microphone.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Speak with aider about your code! Request new features, test cases or bug fixes using your voice and let aider implement the changes.
+Говорите с Aider о коде: фичи, тесты, багфиксы — голосом.
 
 <br>
 
 ### [Linting & testing](https://aider.chat/docs/usage/lint-test.html)
 
 <a href="https://aider.chat/docs/usage/lint-test.html"><img src="https://aider.chat/assets/icons/check-all.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Automatically lint and test your code every time aider makes changes. Aider can fix problems detected by your linters and test suites.
+Авто lint и test после правок Aider; может чинить то, что нашли linters и suites.
 
 <br>
 
-### [Copy/paste to web chat](https://aider.chat/docs/usage/copypaste.html)
+### [Copy/paste в web chat](https://aider.chat/docs/usage/copypaste.html)
 
 <a href="https://aider.chat/docs/usage/copypaste.html"><img src="https://aider.chat/assets/icons/content-copy.svg" width="32" height="32" align="left" valign="middle" style="margin-right:10px"></a>
-Work with any LLM via its web chat interface. Aider streamlines copy/pasting code context and edits back and forth with a browser.
+Работа с любой LLM через web chat: удобный copy/paste контекста и правок.
 
-## Getting Started
+## Старт
 
 ```bash
 python -m pip install aider-install
 aider-install
 
-# Change directory into your codebase
+# Перейдите в каталог проекта
 cd /to/your/project
 
 # DeepSeek
@@ -124,11 +123,11 @@ aider --model sonnet --api-key anthropic=<key>
 aider --model o3-mini --api-key openai=<key>
 ```
 
-See the [installation instructions](https://aider.chat/docs/install.html) and [usage documentation](https://aider.chat/docs/usage.html) for more details.
+Подробнее: [installation](https://aider.chat/docs/install.html) и [usage](https://aider.chat/docs/usage.html).
 
-## More Information
+## Дополнительно
 
-### Documentation
+### Документация
 - [Installation Guide](https://aider.chat/docs/install.html)
 - [Usage Guide](https://aider.chat/docs/usage.html)
 - [Tutorial Videos](https://aider.chat/docs/usage/tutorials.html)
@@ -144,7 +143,7 @@ See the [installation instructions](https://aider.chat/docs/install.html) and [u
 - [Release notes](https://aider.chat/HISTORY.html)
 - [Blog](https://aider.chat/blog/)
 
-## Kind Words From Users
+## Отзывы пользователей
 
 - *"My life has changed... Aider... It's going to rock your world."* — [Eric S. Raymond on X](https://x.com/esrtweet/status/1910809356381413593)
 - *"The best free open source AI coding assistant."* — [IndyDevDan on YouTube](https://youtu.be/YALpX8oOn78)
@@ -182,4 +181,3 @@ See the [installation instructions](https://aider.chat/docs/install.html) and [u
 - *"Been using aider as my daily driver for over a year ... I absolutely love the tool, like beyond words."* — [koleok on Discord](https://discord.com/channels/1131200896827654144/1273248471394291754/1356727448372252783)
 - *"Aider ... is the tool to benchmark against."* — [BeetleB on Hacker News](https://news.ycombinator.com/item?id=43930201)
 - *"aider is really cool"* — [kache on X](https://x.com/yacineMTB/status/1911224442430124387)
-
