@@ -1179,7 +1179,7 @@ class Coder:
             final_reminders.append(self.gpt_prompts.overeager_prompt)
 
         user_lang = self.get_user_language()
-        if user_lang:
+        if user_lang and self.chat_language:
             final_reminders.append(f"Reply in {user_lang}.\n")
 
         platform_text = self.get_platform_info()
@@ -1195,10 +1195,10 @@ class Coder:
             )
             rename_with_shell = ""
 
-        if user_lang:  # user_lang is the result of self.get_user_language()
+        if user_lang and self.chat_language:
             language = user_lang
         else:
-            language = "the same language they are using"  # Default if no specific lang detected
+            language = "the same language they are using"
 
         if self.fence[0] == "`" * 4:
             quad_backtick_reminder = (
