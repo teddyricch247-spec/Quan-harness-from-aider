@@ -40,7 +40,7 @@ but these are useful for scripting:
 --message-file MESSAGE_FILE, -f MESSAGE_FILE
                       Specify a file containing the message to send GPT, process reply,
                       then exit (disables chat mode) [env var: AIDER_MESSAGE_FILE]
---yes                 Always say yes to every confirmation [env var: AIDER_YES]
+--yes-always          Always say yes to every confirmation [env var: AIDER_YES_ALWAYS]
 --auto-commits, --no-auto-commits
                       Enable/disable auto commit of GPT changes (default: True) [env var:
                       AIDER_AUTO_COMMITS]
@@ -86,7 +86,7 @@ See the
 [Coder.create() and Coder.__init__() methods](https://github.com/Aider-AI/aider/blob/main/aider/coders/base_coder.py)
 for all the supported arguments.
 
-It can also be helpful to set the equivalent of `--yes` by doing this:
+It can also be helpful to set the equivalent of `--yes-always` by doing this:
 
 ```python
 from aider.io import InputOutput
