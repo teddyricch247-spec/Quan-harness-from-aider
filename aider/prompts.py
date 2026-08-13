@@ -52,6 +52,8 @@ The summary *MUST* include the function names, libraries, packages that are bein
 The summary *MUST* include the filenames that are being referenced by the assistant inside the ```...``` fenced code blocks!
 The summaries *MUST NOT* include ```...``` fenced code blocks!
 
+The summary *MUST* explicitly note any unresolved errors, bugs, or failing tests mentioned in the recent messages so they are not forgotten.
+
 Phrase the summary with the USER in first person, telling the ASSISTANT about the conversation.
 Write *as* the user.
 The user should refer to the assistant as *you*.
