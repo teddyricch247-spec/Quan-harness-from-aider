@@ -32,8 +32,29 @@ def default_env_file(git_root):
     return os.path.join(git_root, ".env") if git_root else ".env"
 
 
+class AiderArgumentParser(configargparse.ArgumentParser):
+    def convert_item_to_command_line_arg(self, action, key, value):
+        # Work around configargparse mapping any truthy value for a
+        # BooleanOptionalAction config key to the positive flag, even when
+        # the config key is the negated form (eg `no-stream: true` was
+        # silently treated as `--stream`).
+        if (
+            action is not None
+            and isinstance(action, argparse.BooleanOptionalAction)
+            and isinstance(value, str)
+            and len(action.option_strings) > 1
+            and key == action.option_strings[-1].lstrip("-")
+            and key != action.option_strings[0].lstrip("-")
+        ):
+            if value.lower() in ("true", "yes", "on", "1"):
+                return [action.option_strings[-1]]
+            if value.lower() in ("false", "no", "off", "0"):
+                return [action.option_strings[0]]
+        return super().convert_item_to_command_line_arg(action, key, value)
+
+
 def get_parser(default_config_files, git_root):
-    parser = configargparse.ArgumentParser(
+    parser = AiderArgumentParser(
         description="aider is AI pair programming in your terminal",
         add_config_file_help=True,
         default_config_files=default_config_files,
