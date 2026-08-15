@@ -233,6 +233,8 @@ class Coder:
             output += ", prompt cache"
         if main_model.info.get("supports_assistant_prefill"):
             output += ", infinite output"
+        if not self.stream:
+            output += ", non-streaming"
 
         lines.append(output)
 

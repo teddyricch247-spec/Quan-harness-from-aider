@@ -972,6 +972,22 @@ two
             self.assertEqual(len(coder1.abs_fnames), 1)
             self.assertEqual(len(coder2.abs_fnames), 1)
 
+    def test_stream_false_preserved_by_from_coder(self):
+        with GitTemporaryDirectory():
+            io = InputOutput(yes=True)
+
+            # stream defaults to True
+            coder = Coder.create(self.GPT35, None, io=io)
+            self.assertTrue(coder.stream)
+
+            # Explicit stream=False is respected
+            coder = Coder.create(self.GPT35, None, io=io, stream=False)
+            self.assertFalse(coder.stream)
+
+            # And is preserved when creating a new coder from this one
+            coder2 = Coder.create(from_coder=coder)
+            self.assertFalse(coder2.stream)
+
     def test_suggest_shell_commands(self):
         with GitTemporaryDirectory():
             io = InputOutput(yes=True)

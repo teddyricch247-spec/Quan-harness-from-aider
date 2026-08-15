@@ -523,6 +523,33 @@ class TestModels(unittest.TestCase):
         )
 
     @patch("aider.models.litellm.completion")
+    def test_extra_params_cannot_override_stream(self, mock_completion):
+        # extra_params with stream=True must not override an explicit stream=False
+        model = Model("gpt-4")
+        model.extra_params = {"stream": True}
+        messages = [{"role": "user", "content": "Hello"}]
+        model.send_completion(messages, functions=None, stream=False)
+        mock_completion.assert_called_with(
+            model=model.name,
+            messages=messages,
+            stream=False,
+            temperature=0,
+            timeout=600,
+        )
+
+        # And the reverse: stream=True must not be clobbered by extra_params stream=False
+        model = Model("gpt-4")
+        model.extra_params = {"stream": False}
+        model.send_completion(messages, functions=None, stream=True)
+        mock_completion.assert_called_with(
+            model=model.name,
+            messages=messages,
+            stream=True,
+            temperature=0,
+            timeout=600,
+        )
+
+    @patch("aider.models.litellm.completion")
     def test_use_temperature_in_send_completion(self, mock_completion):
         # Test use_temperature=True sends temperature=0
         model = Model("gpt-4")

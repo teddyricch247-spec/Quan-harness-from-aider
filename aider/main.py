@@ -881,6 +881,7 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             val = getattr(main_model, attr.name)
             val = json.dumps(val, indent=4)
             io.tool_output(f"{attr.name}: {val}")
+        io.tool_output(f"stream: {json.dumps(args.stream and main_model.streaming)}")
 
     lint_cmds = parse_lint_cmds(args.lint_cmd, io)
     if lint_cmds is None:

@@ -1481,3 +1481,67 @@ class TestMain(TestCase):
             )
         for call in mock_io_instance.tool_warning.call_args_list:
             self.assertNotIn("Cost estimates may be inaccurate", call[0][0])
+
+    def test_no_stream_sets_coder_stream_false(self):
+        with GitTemporaryDirectory():
+            coder = main(
+                ["--no-stream", "--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+                return_coder=True,
+            )
+            self.assertFalse(coder.stream)
+
+            coder = main(
+                ["--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+                return_coder=True,
+            )
+            self.assertTrue(coder.stream)
+
+    def test_no_stream_from_config_yml(self):
+        with GitTemporaryDirectory():
+            Path(".aider.conf.yml").write_text("stream: false\n")
+            coder = main(
+                ["--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+                return_coder=True,
+            )
+            self.assertFalse(coder.stream)
+
+            Path(".aider.conf.yml").write_text("no-stream: true\n")
+            coder = main(
+                ["--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+                return_coder=True,
+            )
+            self.assertFalse(coder.stream)
+
+    @patch("aider.main.InputOutput")
+    def test_verbose_shows_effective_stream(self, MockInputOutput):
+        mock_io_instance = MockInputOutput.return_value
+        with GitTemporaryDirectory():
+            main(
+                ["--no-stream", "--verbose", "--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+        output_calls = [
+            call.args[0] for call in mock_io_instance.tool_output.call_args_list if call.args
+        ]
+        self.assertIn("stream: false", output_calls)
+
+        mock_io_instance.reset_mock()
+        with GitTemporaryDirectory():
+            main(
+                ["--verbose", "--exit", "--yes"],
+                input=DummyInput(),
+                output=DummyOutput(),
+            )
+        output_calls = [
+            call.args[0] for call in mock_io_instance.tool_output.call_args_list if call.args
+        ]
+        self.assertIn("stream: true", output_calls)
