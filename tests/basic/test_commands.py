@@ -1410,6 +1410,23 @@ class TestCommands(TestCase):
                 )
             )
 
+    def test_cmd_ls_lists_tracked_read_only_file_once(self):
+        with GitTemporaryDirectory():
+            tracked = Path("tracked.txt")
+            tracked.write_text("tracked content\n")
+            git.Repo().index.add([str(tracked)])
+
+            io = InputOutput(pretty=False, fancy_input=False, yes=False)
+            coder = Coder.create(self.GPT35, None, io)
+            commands = Commands(io, coder)
+            commands.cmd_read_only(str(tracked))
+
+            with mock.patch.object(io, "tool_output") as tool_output:
+                commands.cmd_ls("")
+
+            outputs = [call.args[0] for call in tool_output.call_args_list]
+            self.assertEqual(outputs, ["\nRead-only files:\n", "  tracked.txt"])
+
     def test_cmd_read_only_from_working_dir(self):
         with GitTemporaryDirectory() as repo_dir:
             io = InputOutput(pretty=False, fancy_input=False, yes=False)
