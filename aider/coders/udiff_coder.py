@@ -112,10 +112,11 @@ class UnifiedDiffCoder(Coder):
             self.io.write_text(full_path, content)
 
         if errors:
-            errors = "\n\n".join(errors)
-            if len(errors) < len(uniq):
-                errors += other_hunks_applied
-            raise ValueError(errors)
+            failed_hunk_count = len(errors)
+            error_message = "\n\n".join(errors)
+            if failed_hunk_count < len(uniq):
+                error_message += other_hunks_applied
+            raise ValueError(error_message)
 
 
 def do_replace(fname, content, hunk):

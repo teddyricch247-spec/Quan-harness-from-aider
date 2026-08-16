@@ -1,10 +1,39 @@
+import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 
-from aider.coders.udiff_coder import find_diffs
+from aider.coders.udiff_coder import UnifiedDiffCoder, find_diffs, other_hunks_applied
 from aider.dump import dump  # noqa: F401
 
 
 class TestUnifiedDiffCoder(unittest.TestCase):
+    def test_apply_edits_reports_partial_success(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            success = root / "success.txt"
+            failure = root / "failure.txt"
+            success.write_text("old\n")
+            failure.write_text("different\n")
+
+            coder = UnifiedDiffCoder.__new__(UnifiedDiffCoder)
+            coder.abs_root_path = lambda path: root / path
+            coder.io = SimpleNamespace(
+                read_text=lambda path: Path(path).read_text(),
+                write_text=lambda path, content: Path(path).write_text(content),
+            )
+
+            edits = [
+                ("success.txt", ["-old\n", "+new\n"]),
+                ("failure.txt", ["-missing\n", "+replacement\n"]),
+            ]
+
+            with self.assertRaises(ValueError) as error:
+                coder.apply_edits(edits)
+
+            self.assertEqual(success.read_text(), "new\n")
+            self.assertIn(other_hunks_applied, str(error.exception))
+
     def test_find_diffs_single_hunk(self):
         # Test find_diffs with a single hunk
         content = """
