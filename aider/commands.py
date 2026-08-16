@@ -1073,7 +1073,7 @@ class Commands:
             abs_file_path = self.coder.abs_root_path(file)
             if abs_file_path in self.coder.abs_fnames:
                 chat_files.append(file)
-            else:
+            elif abs_file_path not in self.coder.abs_read_only_fnames:
                 other_files.append(file)
 
         # Add read-only files
