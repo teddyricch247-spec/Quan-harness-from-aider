@@ -188,7 +188,9 @@ class MarkdownStream:
         # How many lines have "left" the live window and are now considered stable?
         # Or if final, consider all lines to be stable.
         if not final:
-            num_lines -= self.live_window
+            # Clamp at 0, otherwise a negative count would slice off the *start*
+            # of the lines destined for the live window.
+            num_lines = max(num_lines - self.live_window, 0)
 
         # If we have stable content to display...
         if final or num_lines > 0:
@@ -196,18 +198,17 @@ class MarkdownStream:
             num_printed = len(self.printed)
             show = num_lines - num_printed
 
-            # Skip if no new lines to show above live window
-            if show <= 0:
-                return
+            # Only emit above the live window if there are new stable lines.
+            # Either way we still need to repaint/tear down the live window below.
+            if show > 0:
+                # Get the new lines and display them
+                show = lines[num_printed:num_lines]
+                show = "".join(show)
+                show = Text.from_ansi(show)
+                self.live.console.print(show)  # to the console above the live area
 
-            # Get the new lines and display them
-            show = lines[num_printed:num_lines]
-            show = "".join(show)
-            show = Text.from_ansi(show)
-            self.live.console.print(show)  # to the console above the live area
-
-            # Update our record of printed lines
-            self.printed = lines[:num_lines]
+                # Update our record of printed lines
+                self.printed = lines[:num_lines]
 
         # Handle final update cleanup
         if final:
