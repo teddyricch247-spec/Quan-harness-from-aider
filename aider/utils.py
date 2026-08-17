@@ -89,7 +89,7 @@ def is_image_file(file_name):
     :param file_name: The name of the file to check.
     :return: True if the file is an image, False otherwise.
     """
-    file_name = str(file_name)  # Convert file_name to string
+    file_name = str(file_name).lower()  # Convert file_name to string, extensions are lowercase
     return any(file_name.endswith(ext) for ext in IMAGE_EXTENSIONS)
 
 
