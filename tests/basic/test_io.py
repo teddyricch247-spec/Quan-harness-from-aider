@@ -173,6 +173,28 @@ class TestInputOutput(unittest.TestCase):
             self.assertEqual(result, "test input")
             mock_input.assert_called_once()
 
+    def test_read_image_file_not_found(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        io.tool_error = MagicMock()
+
+        self.assertIsNone(io.read_image("missing_image.png"))
+        io.tool_error.assert_called_once_with("missing_image.png: file not found error")
+
+    def test_read_image_is_a_directory(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        io.tool_error = MagicMock()
+
+        with patch("aider.io.open", side_effect=IsADirectoryError):
+            self.assertIsNone(io.read_image("some_dir.png"))
+        io.tool_error.assert_called_once_with("some_dir.png: is a directory")
+
+    def test_read_text_image_silent(self):
+        io = InputOutput(pretty=False, fancy_input=False)
+        io.tool_error = MagicMock()
+
+        self.assertIsNone(io.read_text("missing_image.png", silent=True))
+        io.tool_error.assert_not_called()
+
     @patch("builtins.input")
     def test_confirm_ask_explicit_yes_required(self, mock_input):
         io = InputOutput(pretty=False, fancy_input=False)

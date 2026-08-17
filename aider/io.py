@@ -432,27 +432,31 @@ class InputOutput:
 
         return Style.from_dict(style_dict)
 
-    def read_image(self, filename):
+    def read_image(self, filename, silent=False):
         try:
             with open(str(filename), "rb") as image_file:
                 encoded_string = base64.b64encode(image_file.read())
                 return encoded_string.decode("utf-8")
-        except OSError as err:
-            self.tool_error(f"{filename}: unable to read: {err}")
-            return
         except FileNotFoundError:
-            self.tool_error(f"{filename}: file not found error")
+            if not silent:
+                self.tool_error(f"{filename}: file not found error")
             return
         except IsADirectoryError:
-            self.tool_error(f"{filename}: is a directory")
+            if not silent:
+                self.tool_error(f"{filename}: is a directory")
+            return
+        except OSError as err:
+            if not silent:
+                self.tool_error(f"{filename}: unable to read: {err}")
             return
         except Exception as e:
-            self.tool_error(f"{filename}: {e}")
+            if not silent:
+                self.tool_error(f"{filename}: {e}")
             return
 
     def read_text(self, filename, silent=False):
         if is_image_file(filename):
-            return self.read_image(filename)
+            return self.read_image(filename, silent=silent)
 
         try:
             with open(str(filename), "r", encoding=self.encoding) as f:
