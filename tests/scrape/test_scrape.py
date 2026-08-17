@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from aider.commands import Commands
 from aider.io import InputOutput
-from aider.scrape import Scraper
+from aider.scrape import Scraper, slimdown_html
 
 
 class TestScrape(unittest.TestCase):
@@ -169,6 +169,33 @@ class TestScrape(unittest.TestCase):
 
         # Assert that html_to_markdown was called with the HTML content
         scraper.html_to_markdown.assert_called_once_with(html_content)
+
+
+class TestSlimdownHtml(unittest.TestCase):
+    def slimdown(self, html):
+        from bs4 import BeautifulSoup
+
+        return slimdown_html(BeautifulSoup(html, "html.parser"))
+
+    def test_removes_every_img(self):
+        html = (
+            "<body>"
+            '<img src="https://example.com/1.png">'
+            "<p>text</p>"
+            '<img src="https://example.com/2.png">'
+            '<img src="https://example.com/3.png">'
+            "</body>"
+        )
+        soup = self.slimdown(html)
+
+        self.assertEqual(soup.find_all("img"), [])
+        self.assertIn("text", str(soup))
+
+    def test_removes_every_svg(self):
+        soup = self.slimdown("<body><svg></svg><p>text</p><svg></svg></body>")
+
+        self.assertEqual(soup.find_all("svg"), [])
+        self.assertIn("text", str(soup))
 
 
 if __name__ == "__main__":

@@ -254,8 +254,8 @@ def slimdown_html(soup):
     for svg in soup.find_all("svg"):
         svg.decompose()
 
-    if soup.img:
-        soup.img.decompose()
+    for img in soup.find_all("img"):
+        img.decompose()
 
     for tag in soup.find_all(href=lambda x: x and x.startswith("data:")):
         tag.decompose()
