@@ -148,6 +148,34 @@ class TestSendChat(unittest.TestCase):
         result = ensure_alternating_roles(messages)
         assert result == expected
 
+    def test_ensure_alternating_roles_consecutive_system(self):
+        from aider.sendchat import ensure_alternating_roles
+
+        messages = [
+            {"role": "system", "content": "You are helpful"},
+            {"role": "system", "content": "Be brief"},
+            {"role": "user", "content": "Hello"},
+        ]
+        result = ensure_alternating_roles(messages)
+        assert result == messages
+
+    def test_ensure_alternating_roles_system_does_not_reset_alternation(self):
+        from aider.sendchat import ensure_alternating_roles
+
+        messages = [
+            {"role": "user", "content": "Hello"},
+            {"role": "system", "content": "Reminder"},
+            {"role": "user", "content": "Are you there?"},
+        ]
+        expected = [
+            {"role": "user", "content": "Hello"},
+            {"role": "system", "content": "Reminder"},
+            {"role": "assistant", "content": ""},
+            {"role": "user", "content": "Are you there?"},
+        ]
+        result = ensure_alternating_roles(messages)
+        assert result == expected
+
     def test_ensure_alternating_roles_mixed_sequence(self):
         from aider.sendchat import ensure_alternating_roles
 

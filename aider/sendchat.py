@@ -30,7 +30,8 @@ def ensure_alternating_roles(messages):
     """Ensure messages alternate between 'assistant' and 'user' roles.
 
     Inserts empty messages of the opposite role when consecutive messages
-    of the same role are found.
+    of the same role are found. System messages can be interspersed anywhere
+    and don't take part in the alternation.
 
     Args:
         messages: List of message dictionaries with 'role' and 'content' keys.
@@ -46,6 +47,10 @@ def ensure_alternating_roles(messages):
 
     for msg in messages:
         current_role = msg.get("role")  # Get 'role', None if missing
+
+        if current_role == "system":
+            fixed_messages.append(msg)
+            continue
 
         # If current role same as previous, insert empty message
         # of the opposite role
