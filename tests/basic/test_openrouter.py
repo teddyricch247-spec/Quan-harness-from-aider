@@ -44,6 +44,65 @@ def test_openrouter_get_model_info_from_cache(monkeypatch, tmp_path):
     assert info["litellm_provider"] == "openrouter"
 
 
+def test_openrouter_get_model_info_prefers_exact_variant(monkeypatch, tmp_path):
+    """
+    A model id with a ":variant" suffix should match the exact record, even when
+    the base model appears earlier in the payload.
+    """
+    payload = {
+        "data": [
+            {
+                "id": "deepseek/deepseek-r1",
+                "context_length": 32768,
+                "pricing": {"prompt": "100", "completion": "200"},
+                "top_provider": {"context_length": 32768},
+            },
+            {
+                "id": "deepseek/deepseek-r1:free",
+                "context_length": 8192,
+                "pricing": {"prompt": "0", "completion": "0"},
+                "top_provider": {"context_length": 8192},
+            },
+        ]
+    }
+
+    monkeypatch.setattr("requests.get", lambda *a, **k: DummyResponse(payload))
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+
+    manager = OpenRouterModelManager()
+    info = manager.get_model_info("openrouter/deepseek/deepseek-r1:free")
+
+    assert info["max_input_tokens"] == 8192
+    assert info["input_cost_per_token"] == 0.0
+    assert info["output_cost_per_token"] == 0.0
+
+
+def test_openrouter_get_model_info_falls_back_to_base_model(monkeypatch, tmp_path):
+    """
+    Routing suffixes such as ":nitro" are not listed as separate models, so the
+    base model record should still be used.
+    """
+    payload = {
+        "data": [
+            {
+                "id": "deepseek/deepseek-r1",
+                "context_length": 32768,
+                "pricing": {"prompt": "100", "completion": "200"},
+                "top_provider": {"context_length": 32768},
+            }
+        ]
+    }
+
+    monkeypatch.setattr("requests.get", lambda *a, **k: DummyResponse(payload))
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+
+    manager = OpenRouterModelManager()
+    info = manager.get_model_info("openrouter/deepseek/deepseek-r1:nitro")
+
+    assert info["max_input_tokens"] == 32768
+    assert info["input_cost_per_token"] == 100.0
+
+
 def test_model_info_manager_uses_openrouter_manager(monkeypatch):
     """
     ModelInfoManager should delegate to OpenRouterModelManager when litellm

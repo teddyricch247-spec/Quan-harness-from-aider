@@ -57,12 +57,18 @@ class OpenRouterModelManager:
 
         route = self._strip_prefix(model)
 
-        # Consider both the exact id and id without any “:suffix”.
-        candidates = {route}
+        # Prefer the exact id, then fall back to the id without any “:suffix”.
+        candidates = [route]
         if ":" in route:
-            candidates.add(route.split(":", 1)[0])
+            candidates.append(route.split(":", 1)[0])
 
-        record = next((item for item in self.content["data"] if item.get("id") in candidates), None)
+        record = None
+        for candidate in candidates:
+            record = next(
+                (item for item in self.content["data"] if item.get("id") == candidate), None
+            )
+            if record:
+                break
         if not record:
             return {}
 
