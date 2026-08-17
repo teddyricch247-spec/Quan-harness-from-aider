@@ -359,6 +359,7 @@ class GitRepo:
                     continue
 
                 commit_message = model.simple_send_with_retries(messages)
+                commit_message = commit_message.strip() if commit_message else None
                 if commit_message:
                     break  # Found a model that could generate the message
 
@@ -366,8 +367,7 @@ class GitRepo:
             self.io.tool_error("Failed to generate commit message!")
             return
 
-        commit_message = commit_message.strip()
-        if commit_message and commit_message[0] == '"' and commit_message[-1] == '"':
+        if commit_message[0] == '"' and commit_message[-1] == '"':
             commit_message = commit_message[1:-1].strip()
 
         return commit_message
