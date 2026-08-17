@@ -301,18 +301,17 @@ class RepoMap:
         # Run the tags queries
         captures = self._run_captures(Query(language, query_scm), tree.root_node)
 
-        captures_by_tag = defaultdict(list)
-        matches = []
+        # Both supported tree-sitter APIs map each capture tag to its nodes.
+        # Flatten in query order, skipping nodes a tag captured more than once.
+        all_nodes = []
+        seen_captures = set()
         for tag, nodes in captures.items():
             for node in nodes:
-                captures_by_tag[tag].append(node)
-            captures_by_tag[tag].append(node)
-            matches.append((node, tag))
-
-        if USING_TSL_PACK:
-            all_nodes = [(node, tag) for tag, nodes in captures_by_tag.items() for node in nodes]
-        else:
-            all_nodes = matches
+                key = (node.start_byte, node.end_byte, node.type, tag)
+                if key in seen_captures:
+                    continue
+                seen_captures.add(key)
+                all_nodes.append((node, tag))
 
         saw = set()
         for node, tag in all_nodes:

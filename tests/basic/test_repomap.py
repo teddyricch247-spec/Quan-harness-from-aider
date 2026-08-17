@@ -4,9 +4,11 @@ import re
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import git
 
+from aider import repomap
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
 from aider.models import Model
@@ -269,6 +271,33 @@ print(my_function(3, 4))
             self.assertNotIn("test_file2.py", result)
             self.assertIn("test_file3.md", result)
             self.assertIn("test_file4.json", result)
+
+            # close the open cache files, so Windows won't error
+            del repo_map
+
+    def test_get_tags_raw_keeps_every_capture_once(self):
+        # Each captured node must be yielded exactly once, whether or not
+        # the tree-sitter-language-pack is in use. See issue #5580.
+        content = "def alpha():\n    return 1\n\ndef beta():\n    return alpha()\n"
+
+        with IgnorantTemporaryDirectory() as temp_dir:
+            fname = os.path.join(temp_dir, "sample.py")
+            with open(fname, "w") as f:
+                f.write(content)
+
+            io = InputOutput()
+            repo_map = RepoMap(main_model=self.GPT35, root=temp_dir, io=io)
+
+            expected = sorted([("alpha", "def", 0), ("beta", "def", 3), ("alpha", "ref", 4)])
+
+            for using_tsl_pack in (False, True):
+                with self.subTest(using_tsl_pack=using_tsl_pack):
+                    with patch.object(repomap, "USING_TSL_PACK", using_tsl_pack):
+                        tags = list(repo_map.get_tags_raw(fname, "sample.py"))
+
+                    self.assertEqual(
+                        sorted((tag.name, tag.kind, tag.line) for tag in tags), expected
+                    )
 
             # close the open cache files, so Windows won't error
             del repo_map
