@@ -282,7 +282,8 @@ def format_tokens(count):
     elif count < 10000:
         return f"{count / 1000:.1f}k"
     else:
-        return f"{round(count / 1000)}k"
+        # round() breaks ties to even, so 10500 would show as "10k" but 11500 as "12k"
+        return f"{int(count / 1000 + 0.5)}k"
 
 
 def touch_file(fname):
