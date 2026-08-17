@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import io
 import os
 import sys
 from pathlib import Path
@@ -32,12 +33,48 @@ def default_env_file(git_root):
     return os.path.join(git_root, ".env") if git_root else ".env"
 
 
+# Args are parsed several times per run, so only warn about each file once
+_skipped_config_files = set()
+
+
+def config_file_opener(default_config_files):
+    """Build the function configargparse uses to open config files.
+
+    configargparse opens every default config file it finds, so an existing but
+    unreadable .aider.conf.yml would crash aider on startup. Skip those, but let
+    errors for config files the user named explicitly propagate so configargparse
+    can report them.
+    """
+    default_paths = {os.path.abspath(os.path.expanduser(fname)) for fname in default_config_files}
+
+    def open_config_file(filename, mode="r", **kwargs):
+        try:
+            return open(filename, mode, **kwargs)
+        except OSError as err:
+            if any(char in mode for char in "wxa+"):
+                raise
+            path = os.path.abspath(os.path.expanduser(filename))
+            if path not in default_paths:
+                raise
+            if path not in _skipped_config_files:
+                _skipped_config_files.add(path)
+                print(
+                    f"Warning: skipping unreadable config file {filename}: {err}", file=sys.stderr
+                )
+            stream = io.StringIO("{}\n")
+            stream.name = str(filename)
+            return stream
+
+    return open_config_file
+
+
 def get_parser(default_config_files, git_root):
     parser = configargparse.ArgumentParser(
         description="aider is AI pair programming in your terminal",
         add_config_file_help=True,
         default_config_files=default_config_files,
         config_file_parser_class=configargparse.YAMLConfigFileParser,
+        config_file_open_func=config_file_opener(default_config_files),
         auto_env_var_prefix="AIDER_",
     )
     # List of valid edit formats for argparse validation & shtab completion.

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
+import configargparse
 import git
 from prompt_toolkit.input import DummyInput
 from prompt_toolkit.output import DummyOutput
@@ -99,6 +100,73 @@ class TestMain(TestCase):
             main([], input=DummyInput(), output=DummyOutput())
             _, kwargs = MockCoder.call_args
             assert kwargs["auto_commits"] is True
+
+    def test_main_with_unreadable_config_yml(self):
+        # A config file we don't have permission to read should be skipped, not crash aider
+        make_repo()
+
+        Path(".aider.conf.yml").write_text("auto-commits: false\n")
+
+        real_open = open
+
+        def open_denying_config(fname, *args, **kwargs):
+            if isinstance(fname, (str, os.PathLike)):
+                if os.path.basename(os.fspath(fname)) == ".aider.conf.yml":
+                    raise PermissionError(13, "Permission denied")
+            return real_open(fname, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=open_denying_config):
+            with patch("aider.coders.Coder.create") as MockCoder:
+                main(["--yes", "--exit"], input=DummyInput(), output=DummyOutput())
+                _, kwargs = MockCoder.call_args
+                # The unreadable config was ignored, so auto-commits keeps its default
+                assert kwargs["auto_commits"] is True
+
+    def test_config_file_opener_with_unreadable_default_config(self):
+        from aider.args import config_file_opener
+
+        Path("unreadable.yml").write_text("auto-commits: false\n")
+        open_config_file = config_file_opener(["unreadable.yml"])
+
+        with patch("builtins.open", side_effect=PermissionError(13, "Permission denied")):
+            stream = open_config_file("unreadable.yml")
+
+        # An empty yaml mapping, so the config file parser has nothing to complain about
+        parser = configargparse.YAMLConfigFileParser()
+        self.assertEqual(parser.parse(stream), {})
+        self.assertEqual(stream.name, "unreadable.yml")
+
+    def test_config_file_opener_with_readable_default_config(self):
+        from aider.args import config_file_opener
+
+        Path("readable.yml").write_text("auto-commits: false\n")
+        open_config_file = config_file_opener(["readable.yml"])
+
+        with open_config_file("readable.yml") as stream:
+            self.assertEqual(stream.read(), "auto-commits: false\n")
+
+    def test_config_file_opener_propagates_other_errors(self):
+        from aider.args import config_file_opener
+
+        open_config_file = config_file_opener(["unreadable.yml"])
+
+        with patch("builtins.open", side_effect=PermissionError(13, "Permission denied")):
+            # Config files named by the user, not defaults, should still raise
+            with self.assertRaises(PermissionError):
+                open_config_file("named.yml")
+
+            # As should writing out a config file
+            with self.assertRaises(PermissionError):
+                open_config_file("unreadable.yml", "w")
+
+    def test_main_with_missing_config_arg(self):
+        with patch("aider.coders.Coder.create"):
+            with self.assertRaises(SystemExit):
+                main(
+                    ["--yes", "--exit", "--no-git", "--config", "missing.yml"],
+                    input=DummyInput(),
+                    output=DummyOutput(),
+                )
 
     def test_main_with_empty_git_dir_new_subdir_file(self):
         make_repo()
