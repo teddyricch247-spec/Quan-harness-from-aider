@@ -203,8 +203,7 @@ class AutoCompleter(Completer):
                 # Fall through to normal completion
                 pass
 
-        candidates = self.words
-        candidates.update(set(self.fname_to_rel_fnames))
+        candidates = self.words | set(self.fname_to_rel_fnames)
         candidates = [word if type(word) is tuple else (word, word) for word in candidates]
 
         last_word = words[-1]

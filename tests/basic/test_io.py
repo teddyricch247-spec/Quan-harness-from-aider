@@ -159,6 +159,24 @@ class TestInputOutput(unittest.TestCase):
             autocompleter = AutoCompleter(root, rel_fnames, addable_rel_fnames, commands, "utf-8")
             self.assertEqual(autocompleter.words, set(rel_fnames))
 
+    def test_autocompleter_get_completions_does_not_mutate_words(self):
+        root = ""
+        rel_fnames = ["src/main.py"]
+        addable_rel_fnames = ["docs/readme.md"]
+        commands = None
+        autocompleter = AutoCompleter(root, rel_fnames, addable_rel_fnames, commands, "utf-8")
+        autocompleter.tokenize()
+        words = set(autocompleter.words)
+
+        completions = list(
+            autocompleter.get_completions(Document(text="readme"), CompleteEvent())
+        )
+
+        # The basename of an addable file is still offered as a completion...
+        self.assertIn("docs/readme.md", [comp.text for comp in completions])
+        # ...but get_completions must not fold it into the tokenized word list
+        self.assertEqual(autocompleter.words, words)
+
     @patch("builtins.input", return_value="test input")
     def test_get_input_is_a_directory_error(self, mock_input):
         io = InputOutput(pretty=False, fancy_input=False)  # Windows tests throw UnicodeDecodeError
