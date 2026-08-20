@@ -1,3 +1,5 @@
+[![CLA assistant](https://cla-assistant.io/readme/badge/AayushBehera/aider)](https://cla-assistant.io/AayushBehera/aider)
+
 <p align="center">
     <a href="https://aider.chat/"><img src="https://aider.chat/assets/logo.svg" alt="Aider Logo" width="300"></a>
 </p>
@@ -138,6 +140,7 @@ See the [installation instructions](https://aider.chat/docs/install.html) and [u
 - [Discord Community](https://discord.gg/Y7X7bhMQFV)
 - [Release notes](https://aider.chat/HISTORY.html)
 - [Blog](https://aider.chat/blog/)
+- 
 
 ## Kind Words From Users
 
