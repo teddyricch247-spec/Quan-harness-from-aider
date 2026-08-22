@@ -360,6 +360,8 @@ class GitRepo:
 
                 commit_message = model.simple_send_with_retries(messages)
                 if commit_message:
+                    commit_message = commit_message.strip()
+                if commit_message:
                     break  # Found a model that could generate the message
 
         if not commit_message:
