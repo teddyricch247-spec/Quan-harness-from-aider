@@ -1,3 +1,4 @@
+import contextlib
 import json
 import os
 import subprocess
@@ -99,6 +100,18 @@ class TestMain(TestCase):
             main([], input=DummyInput(), output=DummyOutput())
             _, kwargs = MockCoder.call_args
             assert kwargs["auto_commits"] is True
+
+    def test_main_with_unreadable_config_file(self):
+        # A directory named .aider.conf.yml can not be opened as a config file.
+        # aider should print a friendly error and exit non-zero instead of
+        # dumping an uncaught PermissionError/IsADirectoryError traceback.
+        # https://github.com/Aider-AI/aider/issues/5466
+        Path(".aider.conf.yml").mkdir()
+        stdout = StringIO()
+        with contextlib.redirect_stdout(stdout):
+            result = main(["--exit"], input=DummyInput(), output=DummyOutput())
+        self.assertEqual(result, 1)
+        self.assertIn("Unable to read configuration file", stdout.getvalue())
 
     def test_main_with_empty_git_dir_new_subdir_file(self):
         make_repo()
