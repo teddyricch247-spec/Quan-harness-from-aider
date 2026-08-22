@@ -52,7 +52,39 @@ but these are useful for scripting:
                       AIDER_DRY_RUN]
 --commit              Commit all pending changes with a suitable commit message, then exit
                       [env var: AIDER_COMMIT]
+--auto-test, --no-auto-test
+                      Enable/disable automatic testing after changes (default: False) [env var:
+                      AIDER_AUTO_TEST]
+--test-cmd TEST_CMD   Specify command to run tests [env var: AIDER_TEST_CMD]
 ```
+
+### Verifying headless changes with tests
+
+By default, a scripted `--message` run applies aider's edits and exits,
+without checking that the result still compiles or passes tests.
+Combine `--auto-test` with `--test-cmd` to have aider run your test
+suite after each round of edits and automatically attempt to fix any
+failures, just like it does in an interactive session:
+
+```bash
+aider --message "fix the failing tests in the payments module" \
+    --yes-always \
+    --no-auto-commits \
+    --auto-test \
+    --test-cmd "go build ./... && go test ./..."
+```
+
+The test command should print errors on stdout/stderr
+and return a non-zero exit code when the tests fail.
+Aider will feed that output back to the model and retry,
+for up to three reflection rounds.
+This makes `--message` runs much safer for CI jobs and benchmarks,
+where nobody is watching to catch broken output.
+
+See
+[linting and testing](/docs/usage/lint-test.html)
+for more about configuring test commands,
+including per-language lint commands.
 
 
 ## Python
