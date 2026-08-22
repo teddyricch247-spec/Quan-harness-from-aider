@@ -328,7 +328,13 @@ model_info_manager = ModelInfoManager()
 
 class Model(ModelSettings):
     def __init__(
-        self, model, weak_model=None, editor_model=None, editor_edit_format=None, verbose=False
+        self,
+        model,
+        weak_model=None,
+        editor_model=None,
+        editor_edit_format=None,
+        verbose=False,
+        extra_headers=None,
     ):
         # Map any alias to its canonical name
         model = MODEL_ALIASES.get(model, model)
@@ -358,15 +364,16 @@ class Model(ModelSettings):
         self.max_chat_history_tokens = min(max(max_input_tokens / 16, 1024), 8192)
 
         self.configure_model_settings(model)
+        self.apply_extra_headers(extra_headers)
         if weak_model is False:
             self.weak_model_name = None
         else:
-            self.get_weak_model(weak_model)
+            self.get_weak_model(weak_model, extra_headers=extra_headers)
 
         if editor_model is False:
             self.editor_model_name = None
         else:
-            self.get_editor_model(editor_model, editor_edit_format)
+            self.get_editor_model(editor_model, editor_edit_format, extra_headers=extra_headers)
 
     def get_model_info(self, model):
         return model_info_manager.get_model_info(model)
@@ -600,7 +607,21 @@ class Model(ModelSettings):
     def __str__(self):
         return self.name
 
-    def get_weak_model(self, provided_weak_model_name):
+    def apply_extra_headers(self, extra_headers):
+        """Merge extra HTTP headers into LiteLLM extra_params for API requests."""
+        if not extra_headers:
+            return
+
+        if not self.extra_params:
+            self.extra_params = {}
+        else:
+            self.extra_params = dict(self.extra_params)
+
+        merged = dict(self.extra_params.get("extra_headers") or {})
+        merged.update(extra_headers)
+        self.extra_params["extra_headers"] = merged
+
+    def get_weak_model(self, provided_weak_model_name, extra_headers=None):
         # If weak_model_name is provided, override the model settings
         if provided_weak_model_name:
             self.weak_model_name = provided_weak_model_name
@@ -616,13 +637,14 @@ class Model(ModelSettings):
         self.weak_model = Model(
             self.weak_model_name,
             weak_model=False,
+            extra_headers=extra_headers,
         )
         return self.weak_model
 
     def commit_message_models(self):
         return [self.weak_model, self]
 
-    def get_editor_model(self, provided_editor_model_name, editor_edit_format):
+    def get_editor_model(self, provided_editor_model_name, editor_edit_format, extra_headers=None):
         # If editor_model_name is provided, override the model settings
         if provided_editor_model_name:
             self.editor_model_name = provided_editor_model_name
@@ -635,6 +657,7 @@ class Model(ModelSettings):
             self.editor_model = Model(
                 self.editor_model_name,
                 editor_model=False,
+                extra_headers=extra_headers,
             )
 
         if not self.editor_edit_format:
