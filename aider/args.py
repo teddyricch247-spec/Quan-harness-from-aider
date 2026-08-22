@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -30,6 +31,63 @@ def resolve_aiderignore_path(path_str, git_root=None):
 
 def default_env_file(git_root):
     return os.path.join(git_root, ".env") if git_root else ".env"
+
+
+def parse_custom_headers(header_values):
+    """Parse --custom-headers values into a dict of HTTP headers.
+
+    Each item may be a KEY=VALUE / KEY:VALUE pair or a JSON object string.
+    A dict is returned as-is (with keys/values stringified).
+    """
+    headers = {}
+    if not header_values:
+        return headers
+
+    if isinstance(header_values, dict):
+        return {str(k): str(v) for k, v in header_values.items()}
+
+    if isinstance(header_values, str):
+        header_values = [header_values]
+
+    for raw in header_values:
+        if raw is None:
+            continue
+        if isinstance(raw, dict):
+            headers.update({str(k): str(v) for k, v in raw.items()})
+            continue
+
+        item = str(raw).strip()
+        if not item:
+            continue
+
+        if item.startswith("{"):
+            try:
+                parsed = json.loads(item)
+            except json.JSONDecodeError as err:
+                raise ValueError(f"Invalid JSON in --custom-headers: {err}") from err
+            if not isinstance(parsed, dict):
+                raise ValueError(
+                    "--custom-headers JSON must be an object of header name/value pairs"
+                )
+            headers.update({str(k): str(v) for k, v in parsed.items()})
+            continue
+
+        if "=" in item:
+            key, value = item.split("=", 1)
+        elif ":" in item:
+            key, value = item.split(":", 1)
+        else:
+            raise ValueError(
+                f"Invalid --custom-headers format: {raw}."
+                " Use KEY=VALUE, KEY:VALUE, or a JSON object."
+            )
+
+        key = key.strip()
+        if not key:
+            raise ValueError(f"Invalid --custom-headers format: {raw}")
+        headers[key] = value.strip()
+
+    return headers
 
 
 def get_parser(default_config_files, git_root):
@@ -76,6 +134,16 @@ def get_parser(default_config_files, git_root):
     group.add_argument(
         "--openai-api-base",
         help="Specify the api base url",
+    )
+    group.add_argument(
+        "--custom-headers",
+        action="append",
+        metavar="HEADER",
+        help=(
+            "Add custom HTTP headers for OpenAI-compatible/BYOK endpoints. Accepts KEY=VALUE,"
+            " KEY:VALUE, or a JSON object. Can be used multiple times"
+        ),
+        default=[],
     )
     group.add_argument(
         "--openai-api-type",

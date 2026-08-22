@@ -595,6 +595,56 @@ class TestModels(unittest.TestCase):
                 self.assertEqual(model.editor_model.name, editor_name)
                 self.assertIn("reasoning_effort", model.accepts_settings)
 
+    def test_parse_custom_headers_key_value_and_json(self):
+        from aider.args import parse_custom_headers
+
+        self.assertEqual(parse_custom_headers(["X-Api-Key=secret"]), {"X-Api-Key": "secret"})
+        self.assertEqual(
+            parse_custom_headers(["X-Tenant: acme", "X-Trace=abc"]),
+            {"X-Tenant": "acme", "X-Trace": "abc"},
+        )
+        self.assertEqual(
+            parse_custom_headers(['{"Authorization": "Bearer tok", "X-Org": "42"}']),
+            {"Authorization": "Bearer tok", "X-Org": "42"},
+        )
+        self.assertEqual(
+            parse_custom_headers(["X-Foo=bar", '{"X-Bar": "baz"}']),
+            {"X-Foo": "bar", "X-Bar": "baz"},
+        )
+
+    @patch("aider.models.litellm.completion")
+    def test_custom_headers_applied_when_initializing_model_client(self, mock_completion):
+        headers = {"X-Custom-Auth": "token-123", "X-Org-Id": "org-9"}
+        model = Model("gpt-4", extra_headers=headers, weak_model=False)
+
+        self.assertEqual(model.extra_params["extra_headers"]["X-Custom-Auth"], "token-123")
+        self.assertEqual(model.extra_params["extra_headers"]["X-Org-Id"], "org-9")
+
+        messages = [{"role": "user", "content": "Hello"}]
+        model.send_completion(messages, functions=None, stream=False)
+
+        mock_completion.assert_called_once()
+        kwargs = mock_completion.call_args.kwargs
+        self.assertEqual(kwargs["extra_headers"]["X-Custom-Auth"], "token-123")
+        self.assertEqual(kwargs["extra_headers"]["X-Org-Id"], "org-9")
+        self.assertEqual(kwargs["model"], model.name)
+
+    @patch("aider.models.litellm.completion")
+    def test_custom_headers_merge_with_existing_extra_headers(self, mock_completion):
+        model = Model(
+            "claude-3-5-sonnet-20240620",
+            extra_headers={"X-Gateway": "byok"},
+            weak_model=False,
+        )
+        extra_headers = model.extra_params["extra_headers"]
+        self.assertEqual(extra_headers["X-Gateway"], "byok")
+        self.assertEqual(extra_headers["anthropic-beta"], ANTHROPIC_BETA_HEADER)
+
+        model.send_completion([{"role": "user", "content": "Hi"}], functions=None, stream=False)
+        sent = mock_completion.call_args.kwargs["extra_headers"]
+        self.assertEqual(sent["X-Gateway"], "byok")
+        self.assertEqual(sent["anthropic-beta"], ANTHROPIC_BETA_HEADER)
+
 
 if __name__ == "__main__":
     unittest.main()
