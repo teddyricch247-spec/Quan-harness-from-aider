@@ -484,6 +484,10 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
             if check_config_files_for_yes(default_config_files):
                 return 1
         raise e
+    except OSError as err:
+        print(f"Unable to read configuration file: {err}")
+        print("Check the file's permissions and that it is a readable file, not a directory.")
+        return 1
 
     if args.verbose:
         print("Config files search order, if no --config:")
@@ -495,13 +499,23 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
 
     parser = get_parser(default_config_files, git_root)
 
-    args, unknown = parser.parse_known_args(argv)
+    try:
+        args, unknown = parser.parse_known_args(argv)
+    except OSError as err:
+        print(f"Unable to read configuration file: {err}")
+        print("Check the file's permissions and that it is a readable file, not a directory.")
+        return 1
 
     # Load the .env file specified in the arguments
     loaded_dotenvs = load_dotenv_files(git_root, args.env_file, args.encoding)
 
     # Parse again to include any arguments that might have been defined in .env
-    args = parser.parse_args(argv)
+    try:
+        args = parser.parse_args(argv)
+    except OSError as err:
+        print(f"Unable to read configuration file: {err}")
+        print("Check the file's permissions and that it is a readable file, not a directory.")
+        return 1
 
     if args.shell_completions:
         # Ensure parser.prog is set for shtab, though it should be by default
