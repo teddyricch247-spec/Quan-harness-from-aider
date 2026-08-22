@@ -153,6 +153,19 @@ class TestRepo(unittest.TestCase):
         self.assertEqual(first_call_messages, second_call_messages)
 
     @patch("aider.models.Model.simple_send_with_retries")
+    def test_get_commit_message_skips_whitespace_only_response(self, mock_send):
+        mock_send.side_effect = [" \t\n", "fallback commit message"]
+
+        model1 = Model("gpt-3.5-turbo")
+        model2 = Model("gpt-4")
+        repo = GitRepo(InputOutput(), None, None, models=[model1, model2])
+
+        result = repo.get_commit_message("dummy diff", "dummy context")
+
+        self.assertEqual(result, "fallback commit message")
+        self.assertEqual(mock_send.call_count, 2)
+
+    @patch("aider.models.Model.simple_send_with_retries")
     def test_get_commit_message_strip_quotes(self, mock_send):
         mock_send.return_value = '"a good commit message"'
 
