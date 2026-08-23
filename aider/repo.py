@@ -267,7 +267,8 @@ class GitRepo:
         )
 
         if not commit_message:
-            commit_message = "(no commit message provided)"
+            self.io.tool_error("Failed to generate a commit message; skipping commit.")
+            return
 
         if prefix_commit_message:
             commit_message = "aider: " + commit_message

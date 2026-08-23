@@ -7,6 +7,8 @@ import pytest
 
 from aider.voice import SoundDeviceError, Voice
 
+pytestmark = pytest.mark.network
+
 
 # Mock the entire sounddevice module
 @pytest.fixture

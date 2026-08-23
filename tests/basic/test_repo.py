@@ -714,3 +714,28 @@ class TestRepo(unittest.TestCase):
                 system_msg_content.startswith(prefix),
                 "system_prompt_prefix should be prepended to the system prompt",
             )
+
+    def test_commit_skips_when_message_generation_fails(self):
+        """If the LLM fails to produce a commit message, aider must NOT commit a
+        junk placeholder. It should skip the commit and leave the change uncommitted."""
+        with GitTemporaryDirectory():
+            raw_repo = git.Repo()
+            raw_repo.config_writer().set_value("user", "name", "Test User").release()
+            raw_repo.config_writer().set_value("user", "email", "test@example.com").release()
+
+            fname = Path("file.txt")
+            fname.write_text("initial\n")
+            raw_repo.git.add(str(fname))
+            raw_repo.git.commit("-m", "initial commit")
+
+            fname.write_text("changed\n")
+
+            git_repo = GitRepo(InputOutput(), None, None)
+            # Simulate total failure to generate a commit message.
+            git_repo.get_commit_message = MagicMock(return_value=None)
+
+            result = git_repo.commit(fnames=[str(fname)], context="ctx")
+            self.assertIsNone(result)
+            # The change must remain uncommitted (no new commit created).
+            self.assertEqual(len(list(raw_repo.iter_commits())), 1)
+            self.assertTrue(raw_repo.is_dirty(path=str(fname)))

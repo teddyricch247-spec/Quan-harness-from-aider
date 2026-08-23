@@ -2,9 +2,13 @@ import time
 import unittest
 from unittest.mock import MagicMock
 
+import pytest
+
 from aider.commands import Commands
 from aider.io import InputOutput
 from aider.scrape import Scraper
+
+pytestmark = pytest.mark.network
 
 
 class TestScrape(unittest.TestCase):

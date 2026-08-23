@@ -5,6 +5,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
 import requests
 
 # Import the functions to be tested
@@ -17,6 +18,8 @@ from aider.onboarding import (
     select_default_model,
     try_to_select_default_model,
 )
+
+pytestmark = pytest.mark.network
 
 
 # Mock the Analytics class as it's used in some functions

@@ -1,4 +1,10 @@
+# For fully reproducible builds pin by digest, e.g. python:3.12-slim-bookworm@sha256:<digest>
 FROM python:3.12-slim-bookworm AS base
+
+# No telemetry in the container; never embed or read any API credentials.
+ENV AIDER_ANALYTICS=false
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies
 RUN apt-get update && \
@@ -30,6 +36,10 @@ RUN git config --system --add safe.directory /app
 # That way caches, version checks, etc get stored in the host filesystem not
 # simply discarded every time the container exits.
 ENV HOME=/app
+
+# Sanity check that the install imports (periodically run while the container is up).
+HEALTHCHECK --interval=60s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["/venv/bin/python", "-c", "import aider"]
 
 #########################
 FROM base AS aider-full

@@ -1,7 +1,11 @@
 from pathlib import Path
 
+import pytest
+
 from aider.models import ModelInfoManager
 from aider.openrouter import OpenRouterModelManager
+
+pytestmark = pytest.mark.network
 
 
 class DummyResponse:

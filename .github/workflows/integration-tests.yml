@@ -1,0 +1,67 @@
+name: Integration Tests (manual)
+
+# Optional, manually-triggered integration suite.
+#
+# Runs the network/real-model tests (gated behind the `network` marker, enabled
+# with --run-network). These hit live model endpoints and therefore require
+# API key secrets to be configured in the repository / environment.
+#
+# Do NOT enable this on every PR: it depends on paid APIs. Trigger it manually
+# (Actions -> Integration Tests (manual) -> Run workflow) once secrets are set.
+#
+# Required secrets (configure as needed for the models under test):
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, etc.
+
+on:
+  workflow_dispatch:
+    inputs:
+      extra_pytest_args:
+        description: 'Additional pytest arguments'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    # Only run when at least one model key is present, otherwise skip cleanly.
+    if: ${{ secrets.OPENAI_API_KEY != '' || secrets.ANTHROPIC_API_KEY != '' || secrets.GEMINI_API_KEY != '' }}
+    runs-on: ubuntu-latest
+    env:
+      AIDER_ANALYTICS: false
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: 'requirements/requirements-dev.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Run network/integration tests
+        run: |
+          pytest -q --run-network --junitxml=integration-results.xml ${{ github.event.inputs.extra_pytest_args }}
+
+      - name: Upload integration results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-results
+          path: integration-results.xml
+          retention-days: 7

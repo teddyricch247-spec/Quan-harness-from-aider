@@ -1,7 +1,11 @@
 import os
 from unittest.mock import patch
 
+import pytest
+
 from aider.models import Model
+
+pytestmark = pytest.mark.network
 
 
 class TestAWSCredentials:

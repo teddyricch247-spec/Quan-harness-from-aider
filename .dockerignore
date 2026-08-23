@@ -1,10 +1,41 @@
-.BC.*
-tmp*
-*~
-OLD*
-*.pyc
-.DS_Store
-.env
-.venv
-.aider.*
+# VCS / metadata
+# NOTE: keep .git in the build context — setuptools_scm derives the package
+# version from git history, and docker-release.yml relies on it. The build's
+# final `rm -rf /tmp/aider` removes it from the image, so it is not shipped.
+.gitignore
+.github
+
+# Python caches / build artifacts
+__pycache__
+*.py[cod]
+.mypy_cache
+.pytest_cache
+.ruff_cache
+*.egg-info
 build
+dist
+.coverage
+htmlcov
+
+# Virtualenvs (including the dev venv created during local testing)
+.venv
+venv
+env
+UsersaayusDownloadsaider-work.venv
+
+# Secrets / local config — never bake these into the image
+.env
+.env.*
+*.log
+.refact
+
+# Local working copy of aider (nested git repo used for testing)
+aider-work
+
+# Docs / website / heavy fixtures not needed at runtime
+aider/website
+docs
+README.md
+HISTORY.md
+tests/fixtures
+tests/browser

@@ -63,6 +63,26 @@ jobs:
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/aider:dev
         target: aider
 
+    - name: Build image for smoke test (PR)
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./docker/Dockerfile
+        platforms: linux/amd64
+        push: false
+        load: true
+        tags: aider:smoke
+        target: aider
+
+    - name: Smoke test built image (PR)
+      if: ${{ github.event_name == 'pull_request' }}
+      run: |
+        docker run --rm aider:smoke --help
+        docker run --rm aider:smoke --version
+        # Fail if any secret-like value is present in the container environment.
+        docker run --rm aider:smoke printenv | grep -iE 'key|token|secret' && exit 1 || true
+
     - name: Build Docker full image (PR)
       if: ${{ github.event_name == 'pull_request' }}
       uses: docker/build-push-action@v5

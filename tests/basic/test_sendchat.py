@@ -1,9 +1,13 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from aider.exceptions import LiteLLMExceptions
 from aider.llm import litellm
 from aider.models import Model
+
+pytestmark = pytest.mark.network
 
 
 class PrintCalled(Exception):
