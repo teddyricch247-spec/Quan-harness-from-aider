@@ -1433,6 +1433,71 @@ This command will print 'Hello, World!' to the console."""
                     # (because user rejected the changes)
                     mock_editor.run.assert_not_called()
 
+    def test_format_chat_chunks_empty_reminder_preserves_user_message(self):
+        model = Model("openai/my-custom-model")
+        io = InputOutput(pretty=False, fancy_input=False, yes=True)
+        coder = Coder.create(
+            model,
+            "help",
+            io=io,
+            stream=False,
+            map_tokens=0,
+            use_git=False,
+        )
+
+        self.assertEqual(model.info, {})
+        self.assertEqual(model.reminder, "user")
+        self.assertEqual(coder.gpt_prompts.system_reminder, "")
+
+        coder.cur_messages = [
+            {"role": "user", "content": "original user content"},
+        ]
+
+        chunks = coder.format_chat_chunks()
+
+        self.assertEqual(
+            chunks.cur[-1]["content"],
+            "original user content",
+        )
+
+    def test_format_chat_chunks_reminder_max_input_tokens_combinations(self):
+        original = "original user content"
+        reminder = "Stay concise."
+        cases = (
+            ("", None, original),
+            ("", 100000, original),
+            (reminder, None, f"{original}\n\n{reminder}"),
+            (reminder, 100000, f"{original}\n\n{reminder}"),
+        )
+
+        for system_reminder, max_input_tokens, expected in cases:
+            with self.subTest(system_reminder=system_reminder, max_input_tokens=max_input_tokens):
+                model = Model("openai/my-custom-model")
+                model.reminder = "user"
+                if max_input_tokens is None:
+                    model.info = {}
+                else:
+                    model.info = {"max_input_tokens": max_input_tokens}
+
+                io = InputOutput(pretty=False, fancy_input=False, yes=True)
+                coder = Coder.create(
+                    model,
+                    "help",
+                    io=io,
+                    stream=False,
+                    map_tokens=0,
+                    use_git=False,
+                )
+                coder.gpt_prompts = type(coder.gpt_prompts)()
+                coder.gpt_prompts.system_reminder = system_reminder
+                coder.cur_messages = [
+                    {"role": "user", "content": original},
+                ]
+
+                chunks = coder.format_chat_chunks()
+
+                self.assertEqual(chunks.cur[-1]["content"], expected)
+
 
 if __name__ == "__main__":
     unittest.main()
