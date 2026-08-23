@@ -1312,10 +1312,8 @@ class Coder:
 
         max_input_tokens = self.main_model.info.get("max_input_tokens") or 0
         # Add the reminder prompt if we still have room to include it.
-        if (
-            not max_input_tokens
-            or total_tokens < max_input_tokens
-            and self.gpt_prompts.system_reminder
+        if self.gpt_prompts.system_reminder and (
+            not max_input_tokens or total_tokens < max_input_tokens
         ):
             if self.main_model.reminder == "sys":
                 chunks.reminder = reminder_message
