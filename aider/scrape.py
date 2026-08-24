@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
+import ipaddress
 import re
+import socket
 import sys
+from urllib.parse import urlparse
 
 import pypandoc
 
@@ -9,6 +12,44 @@ from aider import __version__, urls, utils
 from aider.dump import dump  # noqa: F401
 
 aider_user_agent = f"Aider/{__version__} +{urls.website}"
+
+
+def _validate_public_url(url):
+    """Reject local/reserved destinations before a scrape request is made."""
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("Only http(s) URLs with a hostname can be scraped")
+
+    try:
+        parsed.port  # Validate malformed ports before doing DNS work.
+    except ValueError as exc:
+        raise ValueError("The scrape URL contains an invalid port") from exc
+
+    try:
+        addresses = [ipaddress.ip_address(parsed.hostname)]
+    except ValueError:
+        try:
+            addresses = [
+                ipaddress.ip_address(info[4][0])
+                for info in socket.getaddrinfo(
+                    parsed.hostname, parsed.port, type=socket.SOCK_STREAM
+                )
+            ]
+        except (OSError, ValueError) as exc:
+            raise ValueError("Could not resolve the scrape hostname") from exc
+
+    if not addresses or any(
+        address.is_private
+        or address.is_loopback
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_multicast
+        or address.is_unspecified
+        for address in addresses
+    ):
+        raise ValueError("Refusing to scrape a private or reserved network address")
+
+    return url
 
 # Playwright is nice because it has a simple way to install dependencies on most
 # platforms.
@@ -165,6 +206,22 @@ class Scraper:
 
                 page.set_extra_http_headers({"User-Agent": user_agent})
 
+                def guard_route(route, request):
+                    # Playwright follows redirects and loads subresources. Guard
+                    # every network request, not only the original URL.
+                    if request.url.startswith(("data:", "blob:", "about:")):
+                        route.continue_()
+                        return
+                    try:
+                        _validate_public_url(request.url)
+                    except ValueError:
+                        route.abort()
+                        return
+                    route.continue_()
+
+                page.route("**/*", guard_route)
+                _validate_public_url(url)
+
                 response = None
                 try:
                     response = page.goto(url, wait_until="networkidle", timeout=5000)
@@ -196,8 +253,9 @@ class Scraper:
 
         headers = {"User-Agent": f"Mozilla./5.0 ({aider_user_agent})"}
         try:
+            _validate_public_url(url)
             with httpx.Client(
-                headers=headers, verify=self.verify_ssl, follow_redirects=True
+                headers=headers, verify=self.verify_ssl, follow_redirects=False
             ) as client:
                 response = client.get(url)
                 response.raise_for_status()

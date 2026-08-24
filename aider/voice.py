@@ -114,70 +114,72 @@ class Voice:
             return
 
     def raw_record_and_transcribe(self, history, language):
-        self.q = queue.Queue()
+        # Keep all intermediate files in a private directory. Using
+        # tempfile.mktemp() returns a predictable, attacker-replaceable path
+        # before the file is opened.
+        with tempfile.TemporaryDirectory(prefix="aider-voice-") as temp_dir:
+            self.q = queue.Queue()
+            temp_wav = os.path.join(temp_dir, "recording.wav")
 
-        temp_wav = tempfile.mktemp(suffix=".wav")
-
-        try:
-            sample_rate = int(self.sd.query_devices(self.device_id, "input")["default_samplerate"])
-        except (TypeError, ValueError):
-            sample_rate = 16000  # fallback to 16kHz if unable to query device
-        except self.sd.PortAudioError:
-            raise SoundDeviceError(
-                "No audio input device detected. Please check your audio settings and try again."
-            )
-
-        self.start_time = time.time()
-
-        try:
-            with self.sd.InputStream(
-                samplerate=sample_rate, channels=1, callback=self.callback, device=self.device_id
-            ):
-                prompt(self.get_prompt, refresh_interval=0.1)
-        except self.sd.PortAudioError as err:
-            raise SoundDeviceError(f"Error accessing audio input device: {err}")
-
-        with sf.SoundFile(temp_wav, mode="x", samplerate=sample_rate, channels=1) as file:
-            while not self.q.empty():
-                file.write(self.q.get())
-
-        use_audio_format = self.audio_format
-
-        # Check file size and offer to convert to mp3 if too large
-        file_size = os.path.getsize(temp_wav)
-        if file_size > 24.9 * 1024 * 1024 and self.audio_format == "wav":
-            print("\nWarning: {temp_wav} is too large, switching to mp3 format.")
-            use_audio_format = "mp3"
-
-        filename = temp_wav
-        if use_audio_format != "wav":
             try:
-                new_filename = tempfile.mktemp(suffix=f".{use_audio_format}")
-                audio = AudioSegment.from_wav(temp_wav)
-                audio.export(new_filename, format=use_audio_format)
-                os.remove(temp_wav)
-                filename = new_filename
-            except (CouldntDecodeError, CouldntEncodeError) as e:
-                print(f"Error converting audio: {e}")
-            except (OSError, FileNotFoundError) as e:
-                print(f"File system error during conversion: {e}")
-            except Exception as e:
-                print(f"Unexpected error during audio conversion: {e}")
-
-        with open(filename, "rb") as fh:
-            try:
-                transcript = litellm.transcription(
-                    model="whisper-1", file=fh, prompt=history, language=language
+                sample_rate = int(self.sd.query_devices(self.device_id, "input")["default_samplerate"])
+            except (TypeError, ValueError):
+                sample_rate = 16000  # fallback to 16kHz if unable to query device
+            except self.sd.PortAudioError:
+                raise SoundDeviceError(
+                    "No audio input device detected. Please check your audio settings and try again."
                 )
-            except Exception as err:
-                print(f"Unable to transcribe {filename}: {err}")
-                return
 
-        if filename != temp_wav:
-            os.remove(filename)
+            self.start_time = time.time()
 
-        text = transcript.text
-        return text
+            try:
+                with self.sd.InputStream(
+                    samplerate=sample_rate, channels=1, callback=self.callback, device=self.device_id
+                ):
+                    prompt(self.get_prompt, refresh_interval=0.1)
+            except self.sd.PortAudioError as err:
+                raise SoundDeviceError(f"Error accessing audio input device: {err}")
+
+            # The directory is private and newly created, so this fixed filename
+            # cannot be replaced by another process between creation and open.
+            with sf.SoundFile(temp_wav, mode="x", samplerate=sample_rate, channels=1) as file:
+                while not self.q.empty():
+                    file.write(self.q.get())
+
+            use_audio_format = self.audio_format
+
+            # Check file size and offer to convert to mp3 if too large
+            file_size = os.path.getsize(temp_wav)
+            if file_size > 24.9 * 1024 * 1024 and self.audio_format == "wav":
+                print(f"\nWarning: {temp_wav} is too large, switching to mp3 format.")
+                use_audio_format = "mp3"
+
+            filename = temp_wav
+            if use_audio_format != "wav":
+                try:
+                    new_filename = os.path.join(temp_dir, f"converted.{use_audio_format}")
+                    audio = AudioSegment.from_wav(temp_wav)
+                    audio.export(new_filename, format=use_audio_format)
+                    os.remove(temp_wav)
+                    filename = new_filename
+                except (CouldntDecodeError, CouldntEncodeError) as e:
+                    print(f"Error converting audio: {e}")
+                except (OSError, FileNotFoundError) as e:
+                    print(f"File system error during conversion: {e}")
+                except Exception as e:
+                    print(f"Unexpected error during audio conversion: {e}")
+
+            with open(filename, "rb") as fh:
+                try:
+                    transcript = litellm.transcription(
+                        model="whisper-1", file=fh, prompt=history, language=language
+                    )
+                except Exception as err:
+                    print(f"Unable to transcribe {filename}: {err}")
+                    return
+
+            text = transcript.text
+            return text
 
 
 if __name__ == "__main__":
