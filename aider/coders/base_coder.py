@@ -1258,7 +1258,7 @@ class Coder:
                     dict(role="assistant", content="Ok."),
                 ]
 
-        if self.gpt_prompts.system_reminder:
+        if self.main_model.reminder == "none" and self.gpt_prompts.system_reminder:
             main_sys += "\n" + self.fmt_system_prompt(self.gpt_prompts.system_reminder)
 
         chunks = ChatChunks()
