@@ -102,6 +102,15 @@ class TestModels(unittest.TestCase):
             any("bogus-model" in msg for msg in warning_messages)
         )  # Check that one of the warnings mentions the bogus model
 
+    def test_fuzzy_match_models_skips_non_dict_metadata(self):
+        """A non-dict entry in litellm.model_cost must not crash fuzzy matching."""
+        from aider.models import fuzzy_match_models
+
+        with patch("aider.models.litellm.model_cost", {"weird-entry": ["not", "a", "dict"]}):
+            # Should not raise AttributeError: 'list' object has no attribute 'get'
+            result = fuzzy_match_models("gpt-4")
+        self.assertIsInstance(result, list)
+
     @patch("aider.models.check_for_dependencies")
     def test_sanity_check_model_calls_check_dependencies(self, mock_check_deps):
         """Test that sanity_check_model calls check_for_dependencies"""
