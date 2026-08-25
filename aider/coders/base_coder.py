@@ -150,6 +150,9 @@ class Coder:
         if not io and from_coder:
             io = from_coder.io
 
+        if kwargs.get("read_only_mode") and not edit_format:
+            edit_format = "ask"
+
         if from_coder:
             use_kwargs = dict(from_coder.original_kwargs)  # copy orig kwargs
 
@@ -171,6 +174,7 @@ class Coder:
             update = dict(
                 fnames=list(from_coder.abs_fnames),
                 read_only_fnames=list(from_coder.abs_read_only_fnames),  # Copy read-only files
+                read_only_mode=getattr(from_coder, "read_only_mode", False),
                 done_messages=done_messages,
                 cur_messages=from_coder.cur_messages,
                 aider_commit_hashes=from_coder.aider_commit_hashes,
@@ -338,10 +342,12 @@ class Coder:
         file_watcher=None,
         auto_copy_context=False,
         auto_accept_architect=True,
+        read_only_mode=False,
     ):
         # Fill in a dummy Analytics if needed, but it is never .enable()'d
         self.analytics = analytics if analytics is not None else Analytics()
 
+        self.read_only_mode = read_only_mode
         self.event = self.analytics.event
         self.chat_language = chat_language
         self.commit_language = commit_language
@@ -408,6 +414,11 @@ class Coder:
 
         if not auto_commits:
             dirty_commits = False
+
+        if self.read_only_mode:
+            auto_commits = False
+            dirty_commits = False
+            self.suggest_shell_commands = False
 
         self.auto_commits = auto_commits
         self.dirty_commits = dirty_commits
@@ -1258,7 +1269,7 @@ class Coder:
                     dict(role="assistant", content="Ok."),
                 ]
 
-        if self.gpt_prompts.system_reminder:
+        if self.main_model.reminder == "none" and self.gpt_prompts.system_reminder:
             main_sys += "\n" + self.fmt_system_prompt(self.gpt_prompts.system_reminder)
 
         chunks = ChatChunks()
@@ -2294,6 +2305,9 @@ class Coder:
         return res
 
     def apply_updates(self):
+        if getattr(self, "read_only_mode", False):
+            self.io.tool_warning("File modifications are disabled in read-only / evidence mode.")
+            return set()
         edited = set()
         try:
             edits = self.get_edits()
@@ -2448,6 +2462,8 @@ class Coder:
         return accumulated_output
 
     def handle_shell_commands(self, commands_str, group):
+        if getattr(self, "read_only_mode", False):
+            return ""
         commands = commands_str.strip().splitlines()
         command_count = sum(
             1 for cmd in commands if cmd.strip() and not cmd.strip().startswith("#")
