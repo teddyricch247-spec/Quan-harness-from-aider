@@ -1470,6 +1470,32 @@ class TestMain(TestCase):
             # Restore CWD
             os.chdir(original_cwd)
 
+    def test_load_dotenv_files_continues_after_inaccessible_oauth_file(self):
+        with GitTemporaryDirectory() as git_dir:
+            git_dir = Path(git_dir)
+            fake_home = git_dir / "fake_home"
+            fake_home.mkdir()
+            oauth_keys_file = fake_home / ".aider" / "oauth-keys.env"
+
+            git_root_env = git_dir / ".env"
+            git_root_env.write_text("ACCESSIBLE_VAR=loaded\n")
+
+            original_exists = Path.exists
+
+            def exists_with_inaccessible_oauth(path):
+                if path == oauth_keys_file:
+                    raise PermissionError("permission denied")
+                return original_exists(path)
+
+            with (
+                patch("pathlib.Path.home", return_value=fake_home),
+                patch("pathlib.Path.exists", new=exists_with_inaccessible_oauth),
+            ):
+                loaded_files = load_dotenv_files(str(git_dir), None)
+
+            self.assertIn(str(git_root_env.resolve()), loaded_files)
+            self.assertEqual(os.environ.get("ACCESSIBLE_VAR"), "loaded")
+
     @patch("aider.main.InputOutput")
     def test_cache_without_stream_no_warning(self, MockInputOutput):
         mock_io_instance = MockInputOutput.return_value
