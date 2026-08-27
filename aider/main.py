@@ -1129,7 +1129,9 @@ def main(argv=None, input=None, output=None, force_git_root=None, return_coder=F
         try:
             coder.run(with_message=args.message)
         except SwitchCoder:
-            pass
+            io.tool_error("Coder-switching commands are only supported in interactive mode.")
+            analytics.event("exit", reason="Unsupported --message coder switch")
+            return 1
         analytics.event("exit", reason="Completed --message")
         return
 
