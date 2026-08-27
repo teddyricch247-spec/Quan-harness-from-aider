@@ -12,6 +12,7 @@ from prompt_toolkit.input import DummyInput
 from prompt_toolkit.output import DummyOutput
 
 from aider.coders import Coder
+from aider.commands import SwitchCoder
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
 from aider.main import check_gitignore, load_dotenv_files, main, setup_git
@@ -372,6 +373,19 @@ class TestMain(TestCase):
         main(["--message", test_message], input=DummyInput(), output=DummyOutput())
 
         mock_io_instance.add_to_input_history.assert_called_once_with(test_message)
+
+    @patch("aider.main.InputOutput")
+    @patch("aider.coders.base_coder.Coder.run", side_effect=SwitchCoder())
+    def test_main_message_rejects_switch_coder_commands(self, mock_run, MockInputOutput):
+        test_message = "/ask explain this module"
+        mock_io_instance = MockInputOutput.return_value
+
+        result = main(["--message", test_message], input=DummyInput(), output=DummyOutput())
+
+        self.assertEqual(result, 1)
+        mock_io_instance.tool_error.assert_called_once_with(
+            f"Command '{test_message}' is only supported in interactive mode."
+        )
 
     @patch("aider.main.InputOutput")
     @patch("aider.coders.base_coder.Coder.run")
