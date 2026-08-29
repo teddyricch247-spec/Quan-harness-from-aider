@@ -475,6 +475,25 @@ class TestInputOutputMultilineMode(unittest.TestCase):
             mock_print.assert_called_once()
 
 
+    def test_read_text_no_surrogates(self):
+        with ChdirTemporaryDirectory():
+            path = "test_invalid.txt"
+            with open(path, "wb") as f:
+                f.write(b"hello\xb0world")  # 0xb0 is undecodable as strict UTF-8
+
+            io = InputOutput(fancy_input=False, encoding="utf-8")
+            content = io.read_text(path)
+
+            self.assertIsNotNone(content)
+            for ch in content:
+                self.assertFalse(
+                    0xD800 <= ord(ch) <= 0xDFFF,
+                    f"Surrogate character found: {repr(ch)}",
+                )
+            # The content must be encodable as UTF-8 (required for JSON API payloads)
+            content.encode("utf-8")
+
+
 @patch("aider.io.is_dumb_terminal", return_value=False)
 @patch.dict(os.environ, {"NO_COLOR": ""})
 class TestInputOutputFormatFiles(unittest.TestCase):
