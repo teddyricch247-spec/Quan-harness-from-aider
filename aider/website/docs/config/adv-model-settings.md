@@ -78,6 +78,8 @@ You can override or add settings for any model by creating a `.aider.model.setti
 - The current directory where you launch aider.
 - Or specify a specific file with the `--model-settings-file <filename>` switch.
 
+The benchmark script uses a different option name, `--read-model-settings=<filename.yml>`, when loading model settings for a benchmark run.
+
 If the files above exist, they will be loaded in that order. 
 Files loaded last will take priority.
 
