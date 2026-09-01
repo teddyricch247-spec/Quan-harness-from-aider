@@ -49,6 +49,10 @@ class TestUtils(unittest.TestCase):
         lines = [r"\windows__init__.py", "```"]
         self.assertEqual(eb.find_filename(lines, fence, valid_fnames), r"\windows\__init__.py")
 
+        # Test with indented fences
+        lines = ["  ```python", "file3.py", "  ```"]
+        self.assertEqual(eb.find_filename(lines, fence, valid_fnames), "dir/file3.py")
+
     # fuzzy logic disabled v0.11.2-dev
     def __test_replace_most_similar_chunk(self):
         whole = "This is a sample text.\nAnother line of text.\nYet another line.\n"
