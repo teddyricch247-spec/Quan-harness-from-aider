@@ -1,4 +1,6 @@
 import os
+import tempfile
+from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +8,7 @@ from prompt_toolkit.input import DummyInput
 from prompt_toolkit.output import DummyOutput
 
 from aider.main import main
+from aider.versioncheck import check_version
 
 
 class TestSSLVerification(TestCase):
@@ -64,8 +67,8 @@ class TestSSLVerification(TestCase):
                 mock_client.assert_called_once_with(verify=False)
                 mock_async_client.assert_called_once_with(verify=False)
 
-                # Verify SSL_VERIFY environment variable was set to empty string
-                self.assertEqual(os.environ.get("SSL_VERIFY"), "")
+                # Verify SSL_VERIFY environment variable was set for LiteLLM
+                self.assertEqual(os.environ.get("SSL_VERIFY"), "false")
 
     @patch("aider.io.InputOutput.offer_url")
     @patch("aider.models.model_info_manager.set_verify_ssl")
@@ -82,3 +85,17 @@ class TestSSLVerification(TestCase):
 
                 # Verify SSL_VERIFY environment variable was not set
                 self.assertNotIn("SSL_VERIFY", os.environ)
+
+    @patch("requests.get")
+    def test_version_check_respects_ssl_setting(self, mock_get):
+        mock_get.return_value.json.return_value = {"info": {"version": "0.0.0"}}
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            version_check_file = Path(temp_dir) / "versioncheck"
+            with patch("aider.versioncheck.VERSION_CHECK_FNAME", version_check_file):
+                check_version(MagicMock(), just_check=True, verify_ssl=False)
+
+        mock_get.assert_called_once_with(
+            "https://pypi.org/pypi/aider-chat/json",
+            verify=False,
+        )
