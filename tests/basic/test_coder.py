@@ -1433,6 +1433,43 @@ This command will print 'Hello, World!' to the console."""
                     # (because user rejected the changes)
                     mock_editor.run.assert_not_called()
 
+    def test_get_cur_message_text_with_none_content(self):
+        """Test that get_cur_message_text handles None content gracefully.
+
+        This can happen when assistant messages have no text content
+        (e.g., image-only responses or refusals).
+        """
+        with GitTemporaryDirectory():
+            io = InputOutput(yes=True)
+            coder = Coder.create(self.GPT35, "diff", io=io)
+
+            # Test with mixed None and string content
+            coder.cur_messages = [
+                {"role": "user", "content": "Hello"},
+                {"role": "assistant", "content": None},  # Image-only or refusal
+                {"role": "user", "content": "Continue"},
+            ]
+
+            # Should not raise TypeError
+            result = coder.get_cur_message_text()
+            self.assertEqual(result, "Hello\nContinue\n")
+
+    def test_get_cur_message_text_all_none(self):
+        """Test that get_cur_message_text handles all None content."""
+        with GitTemporaryDirectory():
+            io = InputOutput(yes=True)
+            coder = Coder.create(self.GPT35, "diff", io=io)
+
+            # Test with all None content
+            coder.cur_messages = [
+                {"role": "assistant", "content": None},
+                {"role": "assistant", "content": None},
+            ]
+
+            # Should not raise and return empty string
+            result = coder.get_cur_message_text()
+            self.assertEqual(result, "")
+
 
 if __name__ == "__main__":
     unittest.main()
