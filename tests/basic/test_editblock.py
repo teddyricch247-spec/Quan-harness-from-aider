@@ -29,6 +29,10 @@ class TestUtils(unittest.TestCase):
         lines = ["```python", "file3.py", "```"]
         self.assertEqual(eb.find_filename(lines, fence, valid_fnames), "dir/file3.py")
 
+        # Test with indented fenced markers (regression for #5662)
+        lines = ["  ```python", "file3.py", "  ```"]
+        self.assertEqual(eb.find_filename(lines, fence, valid_fnames), "dir/file3.py")
+
         # Test with no valid filename
         lines = ["```", "invalid_file.py", "```"]
         self.assertEqual("invalid_file.py", eb.find_filename(lines, fence, valid_fnames))
