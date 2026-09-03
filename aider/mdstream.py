@@ -188,7 +188,9 @@ class MarkdownStream:
         # How many lines have "left" the live window and are now considered stable?
         # Or if final, consider all lines to be stable.
         if not final:
-            num_lines -= self.live_window
+            # Clamp so a short render does not become a negative slice index
+            # (e.g. 4 lines with live_window=5 must keep all lines in Live).
+            num_lines = max(0, num_lines - self.live_window)
 
         # If we have stable content to display...
         if final or num_lines > 0:
