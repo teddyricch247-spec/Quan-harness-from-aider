@@ -672,7 +672,8 @@ class Coder:
     def get_cur_message_text(self):
         text = ""
         for msg in self.cur_messages:
-            text += msg["content"] + "\n"
+            if msg["content"] is not None:
+                text += msg["content"] + "\n"
         return text
 
     def get_ident_mentions(self, text):
