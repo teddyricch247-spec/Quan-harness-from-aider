@@ -564,8 +564,9 @@ def find_filename(lines, fence, valid_fnames):
         if filename:
             filenames.append(filename)
 
-        # Only continue as long as we keep seeing fences
-        if not line.startswith(fence[0]) and not line.startswith(triple_backticks):
+        # Only continue as long as we keep seeing fences (allow indented markers)
+        stripped = line.strip()
+        if not stripped.startswith(fence[0]) and not stripped.startswith(triple_backticks):
             break
 
     if not filenames:
