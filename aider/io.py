@@ -308,11 +308,13 @@ class InputOutput:
         self.yes = yes
 
         self.input_history_file = input_history_file
+        pending_history_warning = None
         if self.input_history_file:
             try:
                 Path(self.input_history_file).parent.mkdir(parents=True, exist_ok=True)
             except (PermissionError, OSError) as e:
-                self.tool_warning(f"Could not create directory for input history: {e}")
+                # Defer until console exists; tool_warning needs self.console.
+                pending_history_warning = f"Could not create directory for input history: {e}"
                 self.input_history_file = None
         self.llm_history_file = llm_history_file
         if chat_history_file is not None:
@@ -367,6 +369,9 @@ class InputOutput:
 
         self.file_watcher = file_watcher
         self.root = root
+
+        if pending_history_warning:
+            self.tool_warning(pending_history_warning)
 
         # Validate color settings after console is initialized
         self._validate_color_settings()
