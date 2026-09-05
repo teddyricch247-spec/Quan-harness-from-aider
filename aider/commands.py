@@ -33,6 +33,20 @@ class SwitchCoder(Exception):
         self.placeholder = placeholder
 
 
+def _safe_glob_pattern(pattern):
+    """Normalize a glob pattern so pathlib.Path.glob() accepts it on Windows.
+
+    On Windows, a pattern starting with "/" is not absolute per
+    os.path.isabs() (no drive letter), but pathlib treats it as an
+    "anchored" pattern and raises NotImplementedError. Strip the leading
+    slash so the pattern is treated as relative to the glob root, which
+    is what the user almost certainly intended.
+    """
+    if os.name == "nt" and pattern.startswith("/"):
+        return pattern.lstrip("/")
+    return pattern
+
+
 class Commands:
     voice = None
     scraper = None
@@ -771,8 +785,8 @@ class Commands:
                 raw_matched_files = [Path(pattern)]
             else:
                 try:
-                    raw_matched_files = list(Path(self.coder.root).glob(pattern))
-                except (IndexError, AttributeError):
+                    raw_matched_files = list(Path(self.coder.root).glob(_safe_glob_pattern(pattern)))
+                except (IndexError, AttributeError, NotImplementedError):
                     raw_matched_files = []
         except ValueError as err:
             self.io.tool_error(f"Error matching {pattern}: {err}")
@@ -1358,7 +1372,7 @@ class Commands:
                     matches = [Path(p) for p in glob.glob(expanded_pattern)]
                 else:
                     # For relative paths and globs, use glob from the root directory
-                    matches = list(Path(self.coder.root).glob(expanded_pattern))
+                    matches = list(Path(self.coder.root).glob(_safe_glob_pattern(expanded_pattern)))
 
             if not matches:
                 self.io.tool_error(f"No matches found for: {pattern}")
