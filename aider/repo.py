@@ -571,7 +571,10 @@ class GitRepo:
             return
 
         tracked_files = set(self.get_tracked_files())
-        normalized = self.normalize_path(path)
+        try:
+            normalized = self.normalize_path(path)
+        except ValueError:
+            return False
         return normalized in tracked_files
 
     def abs_root_path(self, path):

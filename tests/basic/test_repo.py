@@ -584,6 +584,14 @@ class TestRepo(unittest.TestCase):
             fnames = git_repo.get_tracked_files()
             self.assertIn(str(fname), fnames)
 
+    def test_path_outside_repo_is_not_tracked(self):
+        with GitTemporaryDirectory():
+            outside_path = Path.cwd().parent / "outside.txt"
+            git_repo = GitRepo(InputOutput(), None, None)
+
+            self.assertFalse(git_repo.path_in_repo(outside_path))
+            self.assertTrue(git_repo.is_dirty(outside_path))
+
     def test_subtree_only(self):
         with GitTemporaryDirectory():
             # Create a new repo
