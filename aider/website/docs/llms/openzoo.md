@@ -39,11 +39,12 @@ Start working with aider and OpenZoo on your codebase:
 cd /to/your/project
 
 # Prefix the model name with openai/
-aider --model openai/z-ai/glm-5.3-flash
+aider --model openai/auto
 ```
 
-The free model list at `http://localhost:8402/v1/models` shows every
-available model id with live pricing.
+`auto` lets the proxy pick a model per request; the free model list at
+`http://localhost:8402/v1/models` shows every available model id (bare names
+like `claude-sonnet-5` or `gpt-4o-mini`) with live pricing.
 
 The hosted endpoint `https://api.openzoo.fun/v1` answers HTTP 402 unless the
 caller pays x402 or presents an OpenZoo subscription key (`ozk_live_…`);
