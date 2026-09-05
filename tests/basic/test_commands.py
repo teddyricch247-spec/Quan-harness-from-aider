@@ -12,7 +12,7 @@ import git
 import pyperclip
 
 from aider.coders import Coder
-from aider.commands import Commands, SwitchCoder
+from aider.commands import Commands, SwitchCoder, _safe_glob_pattern
 from aider.dump import dump  # noqa: F401
 from aider.io import InputOutput
 from aider.models import Model
@@ -2224,3 +2224,32 @@ class TestCommands(TestCase):
             )
             self.assertEqual(new_coder.done_messages, [{"role": "user", "content": "d1"}])
             self.assertEqual(new_coder.cur_messages, [{"role": "user", "content": "c1"}])
+
+class TestSafeGlobPattern(unittest.TestCase):
+    """Windows pathlib.Path.glob() rejects anchored patterns (leading /)
+    with NotImplementedError even though os.path.isabs() says they are
+    relative (no drive letter). _safe_glob_pattern strips the anchor on
+    Windows so the pattern is treated as relative to the glob root.
+    Non-regression test for #5679 / #5675.
+    """
+
+    def test_posix_passthrough(self):
+        with mock.patch("os.name", "posix"):
+            assert _safe_glob_pattern("/foo/bar") == "/foo/bar"
+            assert _safe_glob_pattern("*.py") == "*.py"
+            assert _safe_glob_pattern("src/**/*.py") == "src/**/*.py"
+
+    def test_windows_strips_anchor(self):
+        with mock.patch("os.name", "nt"):
+            assert _safe_glob_pattern("/foo/bar") == "foo/bar"
+            assert _safe_glob_pattern("//nested") == "nested"
+
+    def test_windows_preserves_non_anchored(self):
+        with mock.patch("os.name", "nt"):
+            assert _safe_glob_pattern("*.py") == "*.py"
+            assert _safe_glob_pattern("src/file.py") == "src/file.py"
+
+    def test_windows_preserves_drive_path(self):
+        with mock.patch("os.name", "nt"):
+            assert _safe_glob_pattern("C:/drive/file.py") == "C:/drive/file.py"
+
