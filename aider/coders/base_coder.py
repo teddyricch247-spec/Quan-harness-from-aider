@@ -445,6 +445,9 @@ class Coder:
 
         if self.repo:
             self.root = self.repo.root
+            # Refresh the commit-message models so /model and /weak-model
+            # switches take effect for an already-constructed GitRepo.
+            self.repo.models = main_model.commit_message_models()
 
         for fname in fnames:
             fname = Path(fname)
