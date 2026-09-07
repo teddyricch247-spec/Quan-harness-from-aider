@@ -374,16 +374,22 @@ def load_dotenv_files(git_root, dotenv_fname, encoding="utf-8"):
         # Remove duplicates if it somehow got included by generate_search_path_list
         dotenv_files = list(dict.fromkeys(dotenv_files))
 
+    existing_env = os.environ.copy()
     loaded = []
-    for fname in dotenv_files:
-        try:
-            if Path(fname).exists():
-                load_dotenv(fname, override=True, encoding=encoding)
-                loaded.append(fname)
-        except OSError as e:
-            print(f"OSError loading {fname}: {e}")
-        except Exception as e:
-            print(f"Error loading {fname}: {e}")
+    try:
+        for fname in dotenv_files:
+            try:
+                if Path(fname).exists():
+                    load_dotenv(fname, override=True, encoding=encoding)
+                    loaded.append(fname)
+            except OSError as e:
+                print(f"OSError loading {fname}: {e}")
+            except Exception as e:
+                print(f"Error loading {fname}: {e}")
+    finally:
+        # Keep values explicitly provided by the user ahead of dotenv files.
+        for key, value in existing_env.items():
+            os.environ[key] = value
     return loaded
 
 

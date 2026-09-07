@@ -1470,6 +1470,19 @@ class TestMain(TestCase):
             # Restore CWD
             os.chdir(original_cwd)
 
+    def test_load_dotenv_files_does_not_override_existing_env(self):
+        with GitTemporaryDirectory() as git_dir:
+            git_dir = Path(git_dir)
+            env_file = git_dir / ".env"
+            env_file.write_text("EXISTING_VAR=file_value\nFILE_ONLY_VAR=file_value\n")
+
+            with patch.dict(os.environ, {"EXISTING_VAR": "shell_value"}, clear=False):
+                with patch("pathlib.Path.home", return_value=git_dir / "fake_home"):
+                    load_dotenv_files(str(git_dir), None)
+
+                self.assertEqual(os.environ.get("EXISTING_VAR"), "shell_value")
+                self.assertEqual(os.environ.get("FILE_ONLY_VAR"), "file_value")
+
     @patch("aider.main.InputOutput")
     def test_cache_without_stream_no_warning(self, MockInputOutput):
         mock_io_instance = MockInputOutput.return_value
