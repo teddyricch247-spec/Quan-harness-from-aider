@@ -978,6 +978,36 @@ def run_test_real(
     return results
 
 
+# Runner configuration files per language, restored from the pristine exercise
+# tree before grading (see run_unit_tests).
+RUNNER_CONFIG_FILES = {
+    ".py": ["conftest.py", "pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini"],
+    ".js": ["package.json"],
+    ".cpp": ["CMakeLists.txt"],
+    ".java": ["build.gradle", "settings.gradle", "gradle.properties"],
+    ".rs": ["Cargo.toml"],
+    ".go": ["go.mod"],
+}
+
+# Summary lines each runner prints when tests failed, used to distrust a 0
+# exit code. Matched against the cleaned test output.
+FAILURE_SUMMARY_PATTERNS = {
+    ".py": (r"\b[1-9]\d* failed\b",),
+    ".js": (r"\b[1-9]\d* failing\b",),
+    ".rs": (r"test result: FAILED",),
+    ".go": (r"^FAIL\b",),
+    ".java": (r"> Task .* FAILED", r"BUILD FAILED"),
+}
+
+
+def _output_reports_failures(output, extensions):
+    for ext in extensions:
+        for pattern in FAILURE_SUMMARY_PATTERNS.get(ext, ()):
+            if re.search(pattern, output, re.MULTILINE):
+                return True
+    return False
+
+
 def run_unit_tests(original_dname, testdir, history_fname, test_files):
     timeout = 60 * 3
 
@@ -1003,6 +1033,24 @@ def run_unit_tests(original_dname, testdir, history_fname, test_files):
 
     if not command:
         raise ValueError(f"No test command found for files with extensions: {extensions}")
+
+    # Runner configuration must come from the pristine exercise tree, not the
+    # model's working tree: the harness auto-approves file creation, and a
+    # model-created conftest.py (or a rewritten package.json, CMakeLists.txt,
+    # gradle or Cargo file) can force the test command to exit 0 while every
+    # test fails. Restore these files from the original copy when it has them,
+    # and remove any model-created ones when it does not.
+    exercise_dname = original_dname / Path(*testdir.parts[-4:])
+    for ext in extensions:
+        for config_name in RUNNER_CONFIG_FILES.get(ext, []):
+            config_src = exercise_dname / config_name
+            config_dst = testdir / config_name
+            if config_src.exists():
+                print("restoring", config_src, config_dst)
+                shutil.copy(config_src, config_dst)
+            elif config_dst.exists():
+                print("removing model-created", config_dst)
+                config_dst.unlink()
 
     # Copy test files from original directory
     for file_path in test_files:
@@ -1036,6 +1084,11 @@ def run_unit_tests(original_dname, testdir, history_fname, test_files):
     )
 
     success = result.returncode == 0
+    if success and _output_reports_failures(result.stdout, extensions):
+        # Safety net for exit-code channels the config restore above cannot
+        # reach: the command exited 0 but its own summary reports failures.
+        print(f"Test command exited 0 but reported failures: {testdir}")
+        success = False
     res = result.stdout
     res = cleanup_test_output(res, testdir)
     dump(res)
